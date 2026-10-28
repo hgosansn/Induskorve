@@ -25,6 +25,8 @@ The founding seed and saved positions are preserved; role-specific machinery rep
 
 ## Rendering lifecycle
 
+The Atlas also contains an isolated [WFC building experiment](wfc-experiment.md). `rendering/generation` separates a pure stack-height solver, semantic bay compilation and Canvas drawing. It does not participate in city commands or persistence; generated layouts remain exploratory previews.
+
 Zustand commits immutable world snapshots after commands. Canvas subscribes directly; React does not receive camera or walker frames. Service allocation runs on world changes, not on every frame. Inspection memoizes allocation for stable building arrays.
 
 The scene owns camera, hover, render caches and ambient motion. Pointer capture supports dragging outside the canvas; right-click/Escape cancel placement. AbortController removes listeners; ResizeObserver, animation requests and caches are released on unmount, including StrictMode remounts. Hidden tabs stop rendering. Reduced-motion preferences freeze visual world animation and interface transitions.

@@ -348,3 +348,58 @@ test('facade profiles and mounted displays change the architecture without editi
     await page.evaluate(() => localStorage.getItem('induskorve:city:v3')),
   ).toBe(saved);
 });
+
+test('WFC lab varies reproducibly, exposes floor sections and preserves the city', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/');
+  const saved = await page.evaluate(() =>
+    localStorage.getItem('induskorve:city:v3'),
+  );
+  await page.getByRole('button', { name: 'City', exact: true }).click();
+  await page.getByRole('button', { name: 'Design atlas', exact: true }).click();
+  const atlas = page.getByRole('dialog', { name: 'Design atlas', exact: true });
+  await atlas.getByRole('radio', { name: 'WFC lab', exact: true }).click();
+  const pixels = () => canvasHash(atlas.getByLabel('WFC building preview'));
+  await expect(atlas.getByRole('status')).toContainText('all floors connected');
+  const initial = await pixels();
+  await page.screenshot({ path: 'test-results/wfc-terraces.png' });
+  await atlas.getByRole('button', { name: 'Next seed', exact: true }).click();
+  await expect.poll(pixels).not.toBe(initial);
+  await atlas.getByLabel('Generation seed').fill('42');
+  await expect.poll(pixels).toBe(initial);
+  for (const style of ['Spire', 'Courtyard']) {
+    await atlas.getByRole('radio', { name: style, exact: true }).click();
+    await expect(atlas.getByRole('status')).toContainText('Solved');
+    await page.screenshot({
+      path: `test-results/wfc-${style.toLowerCase()}.png`,
+    });
+  }
+  const complete = await pixels();
+  await atlas.getByRole('slider').fill('2');
+  await expect.poll(pixels).not.toBe(complete);
+  await expect(
+    atlas.getByRole('table', { name: 'Floor 2 plan' }),
+  ).toBeVisible();
+  const section = await pixels();
+  await atlas
+    .getByRole('button', { name: 'Show structure', exact: true })
+    .click();
+  await expect.poll(pixels).not.toBe(section);
+  await page.screenshot({ path: 'test-results/wfc-section.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await atlas.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(
+    true,
+  );
+  await atlas.getByLabel('Generation seed').fill('73');
+  await expect(atlas.getByRole('status')).toContainText('Solved');
+  await page.screenshot({ path: 'test-results/wfc-mobile.png' });
+  expect(
+    await page.evaluate(() => localStorage.getItem('induskorve:city:v3')),
+  ).toBe(saved);
+  expect(errors).toEqual([]);
+});
