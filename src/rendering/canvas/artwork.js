@@ -1,7 +1,10 @@
 import { serviceStatus } from '../../domain/city/networks';
 import { readPalette } from '../palette';
-import { hasModule } from '../../domain/city/catalog';
-// Preserved procedural Canvas artwork. No persistence, DOM UI, or gameplay mutations.
+import { createBuildingRenderer } from './buildings';
+import { createTerrainRenderer } from './terrain-art';
+import { iso } from './geometry';
+import { attachment, roofHeight } from './building-layout';
+// Canvas orchestration and procedural adverts. Building assemblies and terrain are typed renderers.
 // Its typed boundary is artwork.d.ts; camera/input/lifecycle live in scene.ts.
 export function createArtwork(ctx) {
   let W,
@@ -23,9 +26,12 @@ export function createArtwork(ctx) {
     citizen,
     layer,
     draft,
-    preview;
+    preview,
+    study;
   const key = (x, y) => `${x},${y}`;
   const P = readPalette();
+  const drawBuilding = createBuildingRenderer(ctx, P);
+  const drawTerrain = createTerrainRenderer(ctx, P);
   const COLORS = {
     power: P.power,
     materials: P.materials,
@@ -33,16 +39,6 @@ export function createArtwork(ctx) {
     factory: P.production,
     warehouse: P.materials,
   };
-  const iso = (x, y, z = 0) => [(x - y) * 27, (x + y) * 13.5 - z];
-  const roofHeight = (b) => (b.type === 'warehouse' ? b.h * 0.4 : b.h * 0.55);
-  function attachment(b, kind) {
-    return {
-      x: b.x + (kind === 'power' ? 0.46 : 0.77),
-      y: b.y + (kind === 'power' ? 0.51 : 0.38),
-      z: roofHeight(b) + (kind === 'power' ? 16 : 11),
-      base: roofHeight(b) + 3,
-    };
-  }
   function port(b, kind) {
     const p = attachment(b, kind);
     return iso(p.x, p.y, p.z);
@@ -113,31 +109,6 @@ export function createArtwork(ctx) {
       ctx.restore();
     }
   }
-  function buildingIdentity(b) {
-    if (b.type !== 'power') {
-      const receiver = attachment(b, 'materials');
-      const base = iso(receiver.x, receiver.y, receiver.base);
-      const top = iso(receiver.x, receiver.y, receiver.z);
-      line(base, top, P.materials, 1);
-      line([top[0] - 3, top[1] - 2], [top[0] + 3, top[1] + 2], P.materials, 1);
-      line([top[0] - 3, top[1] + 2], [top[0] + 3, top[1] - 2], P.materials, 1);
-    }
-    const p = attachment(b, 'power'),
-      base = iso(p.x, p.y, p.base),
-      top = iso(p.x, p.y, p.z);
-    line(base, top, P.concrete, 1.2);
-    line([top[0] - 4, top[1]], [top[0] + 4, top[1]], P.power, 1.3);
-    for (const dx of [-4, 0, 4])
-      line([top[0] + dx, top[1] - 2], [top[0] + dx, top[1] + 2], P.concrete, 1);
-    const label = iso(b.x + 0.42, b.y + 0.85, 7);
-    ctx.fillStyle = COLORS[b.type];
-    ctx.font = 'bold 5px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(
-      b.type === 'power' ? 'PWR' : b.type === 'factory' ? 'FE' : 'HUB',
-      ...label,
-    );
-  }
   function variation(b, n) {
     let v =
       Math.sin(
@@ -182,19 +153,6 @@ export function createArtwork(ctx) {
       ctx.lineWidth = 0.6;
       ctx.stroke();
     }
-  }
-  function face(x, y, w, d, z, h, colors) {
-    let a = iso(x, y, z),
-      b = iso(x + w, y, z),
-      c = iso(x + w, y + d, z),
-      e = iso(x, y + d, z),
-      A = iso(x, y, z + h),
-      B = iso(x + w, y, z + h),
-      C = iso(x + w, y + d, z + h),
-      E = iso(x, y + d, z + h);
-    poly([b, c, C, B], colors[1], P['ink']);
-    poly([c, e, E, C], colors[2], P['ink']);
-    poly([A, B, C, E], colors[0], P['edge']);
   }
   function line(a, b, color, width = 1) {
     ctx.beginPath();
@@ -343,172 +301,16 @@ export function createArtwork(ctx) {
     ctx.restore();
   }
   function building(b, t, ghost = false) {
-    const { x, y, type } = b,
-      h = roofHeight(b);
-    const n = net.get(b),
-      on = n?.active ?? (ghost || b.on);
-    const concrete = [P['concrete-light'], P.concrete, P['concrete-shadow']];
-    const steel = [P.edge, P.steel, P.surface];
-    const accent = COLORS[type],
-      lit = on ? accent : P.steel;
-    ctx.save();
-    if (ghost) ctx.globalAlpha = 0.65;
-    // A working yard, not a random collection of decorative rooftop objects.
-    face(x + 0.04, y + 0.04, 0.92, 0.92, 0, 3, steel);
-    if (type === 'power') {
-      // Long turbine hall, switchyard and paired exhaust towers.
-      face(x + 0.1, y + 0.32, 0.78, 0.52, 3, h, concrete);
-      const turbines = hasModule(b, 'turbine') ? 3 : 2;
-      for (let i = 0; i < turbines; i++) {
-        face(x + 0.12 + i * 0.25, y + 0.08, 0.19, 0.19, 3, h + 12, steel);
-        face(x + 0.12 + i * 0.25, y + 0.08, 0.19, 0.19, h + 11, 3, [
-          accent,
-          accent,
-          P.steel,
-        ]);
-      }
-      for (let i = 0; i < 5; i++)
-        line(
-          iso(x + 0.16 + i * 0.13, y + 0.85, 12),
-          iso(x + 0.16 + i * 0.13, y + 0.85, h),
-          P.steel,
-          1.5,
-        );
-      if (hasModule(b, 'heat-exchanger')) {
-        face(x + 0.72, y + 0.38, 0.2, 0.35, h + 3, 7, [
-          P.production,
-          P.soot,
-          P.steel,
-        ]);
-        for (let i = 0; i < 3; i++)
-          line(
-            iso(x + 0.73, y + 0.42 + i * 0.08, h + 11),
-            iso(x + 0.92, y + 0.42 + i * 0.08, h + 11),
-            P.production,
-            1.3,
-          );
-      }
-    } else if (type === 'factory') {
-      // Low sawtooth production hall and a tall furnace; expansion is real hardware.
-      face(x + 0.12, y + 0.14, 0.72, 0.7, 3, h, steel);
-      const bays = b.design?.shape === 'tower' ? 2 : 3;
-      for (let i = 0; i < bays; i++) {
-        const yy = y + 0.17 + i * 0.2;
-        poly(
-          [
-            iso(x + 0.12, yy, h + 3),
-            iso(x + 0.84, yy, h + 3),
-            iso(x + 0.84, yy + 0.17, h + 10),
-            iso(x + 0.12, yy + 0.17, h + 10),
-          ],
-          P.concrete,
-          P.edge,
-        );
-      }
-      const furnaces = hasModule(b, 'furnace') ? 2 : 1;
-      for (let i = 0; i < furnaces; i++) {
-        face(x + 0.12 + i * 0.31, y + 0.12, 0.2, 0.22, h, b.h * 0.5, concrete);
-        face(x + 0.12 + i * 0.31, y + 0.12, 0.2, 0.22, h + b.h * 0.5, 2, [
-          P.ink,
-          P.ink,
-          P.ink,
-        ]);
-      }
-      for (let i = 0; i < furnaces + 1; i++) {
-        const xx = x + 0.19 + i * 0.21;
-        poly(
-          [
-            iso(xx, y + 0.85, 4),
-            iso(xx + 0.14, y + 0.85, 4),
-            iso(xx + 0.14, y + 0.85, 13),
-            iso(xx, y + 0.85, 13),
-          ],
-          lit,
-        );
-      }
-      if (hasModule(b, 'scrubber'))
-        face(x + 0.61, y + 0.17, 0.19, 0.24, h + 3, 16, concrete);
-      if (on) {
-        for (let i = 0; i < (hasModule(b, 'scrubber') ? 1 : 4); i++) {
-          const q = (t * 0.16 + i * 0.25) % 1;
-          const p = iso(x + 0.22 + q * 0.25, y + 0.22, h + b.h * 0.5 + q * 26);
-          ctx.save();
-          ctx.globalAlpha *= (1 - q) * 0.2;
-          ctx.fillStyle = P.muted;
-          ctx.fillRect(p[0] - q * 4, p[1], 3 + q * 9, 2 + q * 5);
-          ctx.restore();
-        }
-      }
-    } else {
-      // Broad warehouse shed, shipping doors and inventory stacks.
-      face(x + 0.1, y + 0.1, 0.78, 0.65, 3, h, concrete);
-      for (let i = 0; i < 3; i++) {
-        const xx = x + 0.16 + i * 0.23;
-        poly(
-          [
-            iso(xx, y + 0.76, 3),
-            iso(xx + 0.16, y + 0.76, 3),
-            iso(xx + 0.16, y + 0.76, h - 1),
-            iso(xx, y + 0.76, h - 1),
-          ],
-          P.ink,
-          lit,
-        );
-      }
-      if (hasModule(b, 'solar-roof')) {
-        for (let i = 0; i < 3; i++)
-          face(x + 0.14 + i * 0.23, y + 0.2, 0.18, 0.4, h + 3, 2, [
-            P.materials,
-            P.steel,
-            P.ink,
-          ]);
-      }
-      if (hasModule(b, 'loading-bay')) {
-        face(x + 0.05, y + 0.8, 0.9, 0.17, 3, 3, steel);
-        line(
-          iso(x + 0.06, y + 0.9, 7),
-          iso(x + 0.94, y + 0.9, 7),
-          P.materials,
-          2,
-        );
-      }
-      const stacks = Math.min(4, Math.ceil((b.stock ?? 0) / 100));
-      for (let i = 0; i < stacks; i++)
-        face(x + 0.12 + i * 0.19, y + 0.8, 0.15, 0.15, 6, 6, [
-          P.materials,
-          P.steel,
-          P.surface,
-        ]);
+    const on = net.get(b)?.active ?? (ghost || b.on);
+    drawBuilding(b, on, t, { zoom, ghost, selected: selected === b, study });
+    if (
+      (b.design?.display === 'animated' || b.adImage) &&
+      !study?.exploded &&
+      (!study || study.focus === 'all' || study.focus === 'shell')
+    ) {
+      const h = roofHeight(b);
+      drawAdvert(b, t, b.x + 0.88, b.y + 0.2, 0.48, 8, Math.max(10, h - 7), on);
     }
-    // Shape composes the service core; purpose-specific machinery remains legible.
-    if (b.design?.shape === 'tower')
-      face(x + 0.53, y + 0.42, 0.25, 0.26, h + 3, b.h * 0.32, steel);
-    if (b.design?.shape === 'stepped')
-      face(x + 0.35, y + 0.37, 0.38, 0.3, h + 3, 8, steel);
-    if (b.design?.balcony) {
-      line(
-        iso(x + 0.12, y + 0.89, h * 0.7),
-        iso(x + 0.84, y + 0.89, h * 0.7),
-        P.concrete,
-        1.5,
-      );
-    }
-    if (b.design?.display === 'animated' || b.adImage)
-      drawAdvert(b, t, x + 0.89, y + 0.2, 0.48, 8, Math.max(10, h - 7), on);
-    buildingIdentity(b);
-    if (selected === b) {
-      poly(
-        [
-          iso(x, y, 3),
-          iso(x + 1, y, 3),
-          iso(x + 1, y + 1, 3),
-          iso(x, y + 1, 3),
-        ],
-        P.foreground + '08',
-        P.foreground,
-      );
-    }
-    ctx.restore();
   }
   function draw(frame) {
     ({
@@ -532,6 +334,7 @@ export function createArtwork(ctx) {
       layer,
       draft,
       preview,
+      study,
     } = frame);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = P['background'];
@@ -551,49 +354,7 @@ export function createArtwork(ctx) {
     ctx.save();
     ctx.translate(W * 0.53 + panX, H * 0.53 + panY);
     ctx.scale(zoom, zoom);
-    for (const tile of [...terrain.values()].sort(
-      (a, b) => a.x + a.y - b.x - b.y,
-    )) {
-      let { x, y } = tile;
-
-      let noise = Math.abs(Math.sin(x * 128.4 + y * 33.7));
-      let road = x % 4 === 0 || y % 4 === 0;
-      let a = iso(x, y),
-        b = iso(x + 1, y),
-        c = iso(x + 1, y + 1),
-        d = iso(x, y + 1);
-      poly(
-        [a, b, c, d],
-        road ? P['road'] : noise > 0.5 ? P['ground'] : P['ground-alt'],
-        grid ? P['muted'] : P['edge'],
-      );
-      if (tile.exposure > 0) {
-        ctx.save();
-        ctx.globalAlpha = Math.min(0.65, tile.exposure * 0.06);
-        poly([a, b, c, d], P.soot);
-        ctx.restore();
-      }
-      if (road) {
-        line(iso(x + 0.2, y + 0.2), iso(x + 0.8, y + 0.8), P['edge'], 0.6);
-        if (y % 4 === 0) {
-          line(iso(x, y + 0.36), iso(x + 1, y + 0.36), P['edge'], 1);
-          line(iso(x, y + 0.64), iso(x + 1, y + 0.64), P['edge'], 1);
-          for (let j = 0; j < 4; j++)
-            line(
-              iso(x + j * 0.25, y + 0.25),
-              iso(x + j * 0.25, y + 0.75),
-              P['steel'],
-              1,
-            );
-        }
-      }
-      if (!terrain.has(key(x + 1, y)) && noise > 0.6)
-        face(x + 0.4, y + 0.4, 0.06, 0.06, 0, 4, [
-          P['concrete'],
-          P['concrete-shadow'],
-          P['steel'],
-        ]);
-    }
+    drawTerrain(frame);
     // foundations, service pipes and buildings in depth order
     [
       ...[...buildings.values()].map((b) => ({

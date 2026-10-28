@@ -60,7 +60,7 @@ The isolated server workspace defines structures, appearances, citizens, presenc
 - Local production advances every 10 seconds while joined and visible. Foundries fill warehouse stockpiles, stop at capacity, and resume after dispatch. Raw feedstock is unlimited; mining, fuel and construction costs are future work.
 - Ambient walkers are visual agents, not real users.
 - Local billboard uploads accept PNG/JPEG/WebP/GIF up to 1.5 MB. Animated GIF playback is not guaranteed by Canvas.
-- The preserved artwork module is JavaScript behind a typed boundary. Other application code and the server schema use strict TypeScript.
+- Building geometry, terrain and render layout use strict TypeScript. The remaining scene artwork (adverts, connections and pedestrians) is JavaScript behind a typed boundary.
 - Public multiplayer, server operations, abuse controls and production load acceptance remain future work.
 
 ## Building workshop
@@ -69,8 +69,10 @@ After joining, use **Add building** to choose purpose, functional modules, servi
 
 ## Composable industry and visual language
 
-Buildings have distinct machinery: turbine halls, sawtooth foundries and warehouse loading sheds. Functional modules live on domain entities; silhouettes, finish and displays remain in appearance records. Existing structures can be retrofitted from the inspector. Turbines add capacity; heat recovery supplies a nearby connected foundry; furnaces raise demand/output; scrubbers reduce the visible operating footprint; loading bays add connections/storage; solar roofs lower warehouse grid demand.
+Buildings have distinct machinery: cooling towers over turbine galleries, sawtooth foundries with hot furnace throats, and stepped freight terraces. Functional modules live on domain entities; silhouettes, finish and displays remain in appearance records. Existing structures can be retrofitted from the inspector. Turbines add capacity; heat recovery supplies a nearby connected foundry; furnaces raise demand/output; scrubbers reduce the visible operating footprint; loading bays add connections/storage; solar roofs lower warehouse grid demand.
 
 The placement ghost forecasts its power/storage status and links before construction. Copper pipes indicate recovered heat, yellow suspended wires carry electricity, and blue dots indicate logistics. Warehouse stacks reflect stored metal. Ground tint reflects current emissions, not persistent environmental damage or a pollution penalty.
 
 `src/app/palette.css` is the sole authored color source for Tailwind and Canvas, including pedestrians, adverts, semantic accents and terrain. `src/rendering/palette.ts` resolves those CSS tokens at renderer creation. Reload after editing palette values. The interface uses square corners, thin borders and flat surfaces, including dialogs, notifications and native controls.
+
+Open **City → Design atlas** to study each building assembled or with its layers separated. Isolate the foundation, shell, machinery, fitted modules or services; toggle equipment and operating state. The Atlas and workshop use the actual city renderer. Atlas controls are temporary and do not change the city or its saved data. See [visual direction and references](docs/art-direction.md).

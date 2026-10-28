@@ -32,3 +32,4 @@ export function readPalette() {
     }),
   ) as Record<(typeof tokens)[number], string>;
 }
+export type Palette = ReturnType<typeof readPalette>;

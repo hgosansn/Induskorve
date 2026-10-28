@@ -16,6 +16,7 @@ import type { NetworkLayer } from '../../domain/city/model';
 import type { CityScene } from '../../rendering/canvas/scene';
 import { CityCanvas } from './city-canvas';
 import { BuildingWorkshop } from './building-workshop';
+import { DesignAtlas } from './design-atlas';
 const JoinCityDialog = lazy(() =>
   import('./join-city-dialog').then((m) => ({ default: m.JoinCityDialog })),
 );
@@ -102,6 +103,7 @@ export function CityExperience({ store }: { store: CityStore }) {
                     </ToggleGroupItem>
                   ))}
                 </ToggleGroup>
+                <DesignAtlas />
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant="outline"

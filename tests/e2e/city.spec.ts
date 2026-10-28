@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { createHash } from 'node:crypto';
 async function join(page: import('@playwright/test').Page) {
   await page.getByRole('button', { name: 'Join city' }).click();
   await page.getByLabel('Citizen name', { exact: true }).fill('Builder');
@@ -189,4 +190,103 @@ test('real production, full storage, dispatch and outage are visible in the insp
   );
   expect(economy.shippedMetal).toBe(200);
   await page.screenshot({ path: 'test-results/industry.png' });
+});
+
+test('asset atlas renders each family and module without editing the city', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/');
+  const saved = await page.evaluate(() =>
+    localStorage.getItem('induskorve:city:v3'),
+  );
+  await page.screenshot({ path: 'test-results/nocturne-district.png' });
+  await page.getByRole('button', { name: 'City', exact: true }).click();
+  await page.getByRole('button', { name: 'Design atlas', exact: true }).click();
+  const atlas = page.getByRole('dialog', { name: 'Design atlas', exact: true });
+  const canvas = atlas.locator('canvas');
+  const pixels = async () => {
+    // Read after React's configuration change has reached the Canvas frame.
+    const data = await canvas.evaluate(async (el: HTMLCanvasElement) => {
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+      return el.toDataURL();
+    });
+    return createHash('sha256').update(data).digest('hex');
+  };
+  for (const [family, equipment] of [
+    ['Power', ['Extra turbine', 'Heat recovery']],
+    ['Foundry', ['Second furnace', 'Exhaust scrubber']],
+    ['Freight', ['Loading bay', 'Solar roof']],
+  ] as const) {
+    await atlas.getByRole('radio', { name: family, exact: true }).click();
+    for (const module of equipment) {
+      const before = await pixels();
+      await atlas.getByRole('checkbox', { name: new RegExp(module) }).uncheck();
+      await expect.poll(pixels).not.toBe(before);
+      await atlas.getByRole('checkbox', { name: new RegExp(module) }).check();
+      await expect.poll(pixels).toBe(before);
+    }
+    await page.screenshot({
+      path: `test-results/atlas-${family.toLowerCase()}.png`,
+    });
+  }
+  await atlas.getByRole('radio', { name: 'Foundry', exact: true }).click();
+  const assembled = await pixels();
+  await atlas
+    .getByRole('button', { name: 'Separate layers', exact: true })
+    .click();
+  await expect.poll(pixels).not.toBe(assembled);
+  await page.screenshot({ path: 'test-results/atlas-exploded.png' });
+  for (const layer of [
+    'foundation',
+    'shell',
+    'machinery',
+    'modules',
+    'services',
+  ]) {
+    await atlas.getByRole('radio', { name: layer, exact: true }).click();
+    await expect(
+      atlas.getByRole('radio', { name: layer, exact: true }),
+    ).toHaveAttribute('data-state', 'on');
+  }
+  await atlas.getByRole('radio', { name: 'Complete', exact: true }).click();
+  const operating = await pixels();
+  await atlas.getByRole('button', { name: 'Operating', exact: true }).click();
+  await expect.poll(pixels).not.toBe(operating);
+  await expect(
+    atlas.getByRole('button', { name: 'Idle', exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => localStorage.getItem('induskorve:city:v3')),
+  ).toBe(saved);
+  expect(errors).toEqual([]);
+});
+
+test('asset atlas fits a narrow screen and returns focus when dismissed', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'City', exact: true }).click();
+  await page.getByRole('button', { name: 'Design atlas', exact: true }).click();
+  const atlas = page.getByRole('dialog', { name: 'Design atlas', exact: true });
+  await expect(atlas).toBeVisible();
+  expect(await atlas.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(
+    true,
+  );
+  await page.screenshot({ path: 'test-results/atlas-mobile.png' });
+  await page.keyboard.press('Escape');
+  await expect(atlas).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Design atlas', exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(
+    page.getByRole('button', { name: 'City', exact: true }),
+  ).toBeFocused();
 });

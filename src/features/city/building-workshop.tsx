@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
+import { BuildingPreview } from './building-preview';
 import {
   Dialog,
   DialogContent,
@@ -20,82 +21,9 @@ import {
   type BuildingDesign,
 } from '../../domain/city/model';
 import type { CityStore } from '../../application/city-store';
-import { createArtwork } from '../../rendering/canvas/artwork.js';
-import { projectWorld } from '../../rendering/canvas/view-model';
 import { MODULES, buildingStats } from '../../domain/city/catalog';
 import { Plus } from 'lucide-react';
 
-function BuildingPreview({ draft }: { draft: BuildingDraft }) {
-  const canvas = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const el = canvas.current;
-    if (!el) return;
-    const ctx = el.getContext('2d');
-    if (!ctx) return;
-    const art = createArtwork(ctx);
-    const world = projectWorld({
-      version: 3,
-      citizens: [],
-      buildings: [
-        {
-          id: 0,
-          x: 0,
-          y: 0,
-          type: draft.kind,
-          on: true,
-          modules: draft.modules,
-        },
-      ],
-      appearances: [
-        {
-          buildingId: 0,
-          height: draft.height,
-          seed: draft.seed,
-          design: draft.design,
-        },
-      ],
-    });
-    for (const n of world.net.values()) n.active = true;
-    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let raf = 0;
-    const draw = (time: number) => {
-      const rect = el.getBoundingClientRect();
-      const dpr = Math.min(devicePixelRatio, 2);
-      el.width = rect.width * dpr;
-      el.height = rect.height * dpr;
-      art.draw({
-        ...world,
-        W: rect.width,
-        H: rect.height,
-        dpr,
-        zoom: 3,
-        panX: 0,
-        panY: 45,
-        clock: reduced ? 0 : time / 1000,
-        mode: 'inspect',
-        grid: false,
-        hover: null,
-        selected: null,
-        citizen: null,
-        layer: 'off',
-        walkers: [],
-      });
-      raf = requestAnimationFrame(draw);
-    };
-    raf = requestAnimationFrame(draw);
-    return () => {
-      cancelAnimationFrame(raf);
-      art.dispose();
-    };
-  }, [draft]);
-  return (
-    <canvas
-      ref={canvas}
-      aria-label="Configured building preview"
-      className="h-64 w-full border border-border"
-    />
-  );
-}
 export function BuildingWorkshop({ store }: { store: CityStore }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<BuildingDraft>(defaultDraft);

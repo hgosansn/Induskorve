@@ -21,13 +21,15 @@ The domain imports only Zod. It has no React, Canvas, storage, networking or sty
 | ServiceState / NetworkLink | Derived allocation, demand, capacity, activity                           | Pixels, colors, animation                    |
 | RenderBuilding / Walker    | Projected geometry and visual pedestrian motion                          | Persistent authority                         |
 
-The founding seed and saved positions are preserved; role-specific machinery replaces random building decoration. A view projection joins entity/appearance records and maps service IDs to render references. Scene and projection are TypeScript. The existing mathematical artwork remains JavaScript behind a typed declaration; converting that isolated module to checked TypeScript remains a hardening task.
+The founding seed and saved positions are preserved; role-specific machinery replaces random building decoration. A view projection joins entity/appearance records and maps service IDs to render references. Scene, projection, building geometry and terrain are TypeScript. Adverts, connections and pedestrians remain in `artwork.js` behind a typed declaration; full artwork type coverage remains a hardening task.
 
 ## Rendering lifecycle
 
 Zustand commits immutable world snapshots after commands. Canvas subscribes directly; React does not receive camera or walker frames. Service allocation runs on world changes, not on every frame. Inspection memoizes allocation for stable building arrays.
 
 The scene owns camera, hover, render caches and ambient motion. Pointer capture supports dragging outside the canvas; right-click/Escape cancel placement. AbortController removes listeners; ResizeObserver, animation requests and caches are released on unmount, including StrictMode remounts. Hidden tabs stop rendering. Reduced-motion preferences freeze visual world animation and interface transitions.
+
+`geometry.ts` supplies isometric drawing primitives, `building-layout.ts` shares roof and connection coordinates, `buildings.ts` composes role-specific assemblies, and `terrain-art.ts` draws the revealed ground. `artwork.js` orchestrates these with the remaining scene elements. The optional `BuildingStudy` render configuration separates or isolates assembly layers without entering the domain or save model. `BuildingPreview` is shared by the workshop and Design atlas; both render the same geometry as placed buildings. Atlas state is local React state with no command or persistence access.
 
 ## Save integrity
 

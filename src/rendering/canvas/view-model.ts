@@ -14,6 +14,7 @@ import {
 import { revealedTerrain } from '../../domain/city/terrain';
 import { tileKey } from '../../domain/city/model';
 import { buildingStats } from '../../domain/city/catalog';
+import type { BuildingStudy } from './building-layout';
 
 export interface RenderBuilding extends Building {
   stock?: number;
@@ -48,6 +49,7 @@ export interface RenderWorld {
   links: RenderLink[];
 }
 export interface RenderFrame extends RenderWorld {
+  study?: BuildingStudy;
   preview?: {
     building: RenderBuilding;
     service: RenderNetwork;

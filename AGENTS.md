@@ -13,7 +13,7 @@ This section supersedes historical implementation/layout/run instructions below.
 - Verification: `npm run check`, `npm run build`, `npm run test:e2e`. Pages deploys dist on main. Pages activation and effective protections remain external settings to verify separately.
 - `spacetimedb/src/index.ts` is a typechecked schema workspace only; no reducers, published database or live multiplayer. See `docs/spacetimedb.md`.
 - Generic controls come from shadcn/ui. Do not create a parallel design system.
-- Artwork remains isolated JS behind `artwork.d.ts`; other application code uses TypeScript. Do not claim full artwork type coverage or production readiness.
+- Remaining adverts, connections and pedestrian artwork stay in isolated JS behind `artwork.d.ts`; geometry, buildings, terrain and other application code use TypeScript. Do not claim full artwork type coverage or production readiness.
 
 ## Current product changes (2026-10-28, supersedes historical art/service notes)
 
@@ -24,6 +24,8 @@ This section supersedes historical implementation/layout/run instructions below.
 - Local production ticks every 10 seconds only while joined and visible. Metal fills warehouse stockpiles; full hubs stop output; dispatch clears stock and records shipped metal. Raw feedstock is unlimited, construction is free, and there is no offline catch-up or shared authority yet.
 - Ground tint is current local emissions exposure, not accumulated damage or a gameplay penalty. Heat is shown with copper pipes; existing power wires and airborne logistics indicators remain.
 - Keep workshop → forecast ghost → placement and an empty bottom UI. Forecast uses the same network rules as placement.
+- The visual direction is Industrial nocturne: engineered dark ground, faceted cooling towers, hot sawtooth foundries and stepped freight terraces. Reference study and acceptance criteria live in `docs/art-direction.md`; no reference images are shipped.
+- **City → Design atlas** previews the same assets assembled, separated by layer, with equipment and operating-state controls. Atlas state never writes to the city. `geometry.ts`, `building-layout.ts`, `buildings.ts` and `terrain-art.ts` are typed; the remaining adverts, connections and pedestrians stay in isolated `artwork.js`.
 
 ## Product identity and goal
 
