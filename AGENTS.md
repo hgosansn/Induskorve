@@ -2,6 +2,19 @@
 
 Updated: 2026-10-28. This file captures the product direction and decisions from the founding conversation. Read it before changing the experience. Distinguish implemented prototype behavior from proposed future simulation rules.
 
+## Current engineering foundation (2026-10-28)
+
+This section supersedes historical implementation/layout/run instructions below. Product and art decisions remain applicable.
+
+- React 19, Vite, strict TypeScript, Tailwind 4, official shadcn/ui primitives, Radix, Motion, Zod and Zustand form the frontend foundation.
+- Source now lives under `src/`, separated into domain, application, features, infrastructure and Canvas rendering. See README and `docs/architecture.md`.
+- `docs/index.html` was replaced by the built app. Use Node 24, `npm ci`, `npm run dev`; builds go to `dist/`.
+- Preserve saves: `onecity-v2` migrates to namespaced version 3 without deletion. Invalid saved data must not be overwritten by a fresh city.
+- Verification: `npm run check`, `npm run build`, `npm run test:e2e`. Pages deploys dist on main. Pages activation and effective protections remain external settings to verify separately.
+- `spacetimedb/src/index.ts` is a typechecked schema workspace only; no reducers, published database or live multiplayer. See `docs/spacetimedb.md`.
+- Generic controls come from shadcn/ui. Do not create a parallel design system.
+- Artwork remains isolated JS behind `artwork.d.ts`; other application code uses TypeScript. Do not claim full artwork type coverage or production readiness.
+
 ## Product identity and goal
 
 - Product name: **Induskorve** (user originally wrote “IndusKorve”; current repository and prototype use Induskorve).
@@ -28,6 +41,7 @@ Updated: 2026-10-28. This file captures the product direction and decisions from
 ## World expansion — important correction
 
 The user explicitly replaced global circular expansion:
+
 - Each placed building reveals its own **small circular area of available ground**.
 - The world's terrain is the **union of those local disks**.
 - Building toward one edge must NOT reveal an entire larger circle around the origin.
@@ -40,6 +54,7 @@ The user explicitly replaced global circular expansion:
 Industrial, dense, interconnected, mechanical, slightly hostile. Heavy factories, steel, chimneys, pipes, rails, cables, utility infrastructure and warm furnace light. Charcoal / muted green / olive steel palette with restrained cyberpunk accents. Avoid turning the scene into a bright generic city-building game.
 
 The user wants procedural variety that makes architectural sense:
+
 - Different heights, footprints, tiered masses, roof equipment and chimney configurations.
 - Balconies, service platforms, ladders, antennas, sheds, vents and small industrial details.
 - Uneven window illumination: not all lights on and not identical patterns.
@@ -49,6 +64,7 @@ The user wants procedural variety that makes architectural sense:
 ### Advertising and building lettering
 
 Specific user decisions:
+
 - **Front facades:** small names / lettering directly on the wall, not text inside little boxed panels.
 - **Right-hand side walls:** large LED adverts spanning most of the broad facade.
 - Animated, distinct adverts for different buildings; images and GIFs are part of the desired direction.
@@ -89,12 +105,15 @@ The city should visually communicate dependencies rather than merely decorate bu
 - This root file is the handover; future agents should keep it accurate.
 
 Run:
+
 ```sh
 python3 -m http.server 8000 --directory docs
 ```
+
 Then visit http://localhost:8000.
 
 Key implementation concepts/functions:
+
 - `buildings` and `terrain` maps; `reveal` unions per-building disks.
 - `variation` gives deterministic building variation.
 - `rebuildNetworks`, `net`, `links`, `networkDirty` calculate local services after changes.
@@ -124,6 +143,7 @@ Key implementation concepts/functions:
 The user explicitly chose **SpacetimeDB** for the eventual live shared world. React + PixiJS was proposed for the frontend; it is a future option, not an implemented or mandatory migration. Preserve the working visual direction when modularizing.
 
 Proposed industrial chain:
+
 - Mine produces ore and fuel.
 - Power station consumes fuel and supplies electricity.
 - Foundry consumes ore and electricity and produces metal.
@@ -133,6 +153,7 @@ Proposed industrial chain:
 - Construction spends materials from a connected stockpile.
 
 Proposed MVP choices, still to validate:
+
 - Begin with network-level resource pools, not server-simulated individual items.
 - A public bootstrap power source and starter stockpile prevent circular startup deadlocks.
 - Immediate placements/topology updates; roughly 10-second production ticks; slower maintenance; smooth local visual animation.
@@ -145,6 +166,7 @@ Proposed MVP choices, still to validate:
 - Exact SDK APIs must be checked against current SpacetimeDB docs before implementation.
 
 Social direction:
+
 - Cooperation through power/material needs, requests, blueprints and repairs before adding global chat.
 - Shareable building/location links, creator attribution, milestones and persistent event history.
 - Limited actions / cooldowns and anti-spam measures for a public multiplayer launch.
@@ -154,11 +176,13 @@ Social direction:
 ## GitHub Pages and security — unfinished work
 
 User explicitly requested:
+
 1. Public repository.
 2. Automatic GitHub Pages deployment.
 3. Only approved contributors may modify main and create releases.
 
 Known state at handover:
+
 - Public repository created by the user, source successfully imported.
 - Import commit: `f8bd423ff3e4fa9676d81252f84065fb132e3e60`.
 - Workflow uploads `docs/` and deploys via official Pages actions.
@@ -170,14 +194,17 @@ Known state at handover:
 - No releases have intentionally been created.
 
 Finish in an authenticated admin environment:
+
 ```sh
 gh auth status
 gh api --method POST repos/hgosansn/Induskorve/pages -f build_type=workflow
 gh workflow run pages.yml --repo hgosansn/Induskorve
 ```
+
 Check current Pages state first; if a site already exists, update it rather than blindly POSTing. Verify a successful deployment and use the returned URL.
 
 For repository protection:
+
 - @hgosansn is the only explicitly identified approved maintainer so far. Do not guess additional approved people or grant access broadly.
 - Inspect existing collaborators, rulesets, bypass actors, branch protection, tag protection and release workflows.
 - Enforce main protection through rulesets/branch settings: pull requests, code-owner approval, block force pushes and deletion, and limit bypass privileges deliberately.
@@ -189,6 +216,7 @@ For repository protection:
 - Confirm actual applied settings; do not describe proposed controls as enforced.
 
 Prior environment blockers (not architectural requirements):
+
 - Previous sandbox lacked `gh`, CLI credentials and GitHub download network access.
 - Connected GitHub tools could push files but lacked Pages/settings/ruleset operations.
 - Browser was signed out; secure sign-in requests were declined.
@@ -205,6 +233,7 @@ Prior environment blockers (not architectural requirements):
 6. Verify two-client synchronization before claiming multiplayer support.
 
 Existing verification:
+
 - JavaScript parsed successfully using `new Function`.
 - Browser checks covered join gating, inspection, placement, Escape/right-click cancellation and persistence after refresh.
 - Local service checks covered connected chains, plant outages, missing storage, range and capacity.
