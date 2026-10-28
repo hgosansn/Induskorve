@@ -1,7 +1,7 @@
 import { generateWfc, type WfcBuilding, type WfcConstraints } from './wfc';
 import type { AssemblyInput, Volume } from '../assembly/model';
 
-export const CITY_KIT_VERSION = 1;
+export const CITY_KIT_VERSION = 2;
 export interface CityMassing {
   recipe: WfcBuilding;
   constraints: WfcConstraints;
@@ -35,12 +35,12 @@ export function cityMassing(b: AssemblyInput, hall: Volume): CityMassing {
   const podium = Math.min(2.7, hall.h * 0.65),
     storey = (hall.h - podium) / (levels - 1);
   const pins: Record<number, number> = {};
-  // Rear service deck: two supported pads and a core joining them. Front terrace: access.
+  // Only the electrical deck and stair core pin the rear skyline.
+  // The former control-room pad is free to step down with the generated shell.
   for (let x = 0; x < 5; x++) {
-    pins[x] = levels;
     pins[x + 20] = 1;
   }
-  for (const i of [5, 6, 8, 9]) pins[i] = levels;
+  for (const i of [2, 3, 4, 8, 9]) pins[i] = levels;
   if (b.type === 'factory')
     for (const i of [10, 11]) pins[i] = Math.max(1, levels - 2);
   if (b.type === 'warehouse') {
@@ -51,7 +51,10 @@ export function cityMassing(b: AssemblyInput, hall: Volume): CityMassing {
     height: levels,
     step: 2,
     core: [2, 0],
-    target: shape === 'block' ? levels : levels - 1,
+    target:
+      shape === 'block'
+        ? levels
+        : Math.max(1.25, levels - 1 - (Math.floor(b.variant * 1000) % 3) * 0.4),
     minimum: 1,
     pins,
   };

@@ -1,4 +1,5 @@
 import { serviceStatus } from '../../domain/city/networks';
+import { isRoadCorridor } from '../../domain/city/plots';
 import { readPalette } from '../palette';
 import { createBuildingRenderer } from './buildings';
 import { createTerrainRenderer } from './terrain-art';
@@ -398,7 +399,10 @@ export function createArtwork(ctx) {
     drawConnections(clock);
     if (hover && citizen && mode !== 'inspect') {
       let { x, y } = hover;
-      let valid = !buildings.has(key(x, y)) && terrain.has(key(x, y));
+      let valid =
+        !isRoadCorridor(hover) &&
+        !buildings.has(key(x, y)) &&
+        terrain.has(key(x, y));
       poly(
         [iso(x, y), iso(x + 1, y), iso(x + 1, y + 1), iso(x, y + 1)],
         valid ? P['foreground'] + '22' : P['danger'] + '33',
@@ -429,7 +433,9 @@ export function createArtwork(ctx) {
       }
       const label = iso(x + 0.5, y + 0.5, -23);
       const message = !valid
-        ? 'OCCUPIED / UNREVEALED'
+        ? isRoadCorridor(hover)
+          ? 'ROAD / KEEP CLEAR'
+          : 'OCCUPIED / UNREVEALED'
         : serviceStatus(ghost, preview?.service) +
           (preview?.service.output ? ` / ${preview.service.output} metal` : '');
       ctx.font = '9px monospace';

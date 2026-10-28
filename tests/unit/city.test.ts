@@ -108,7 +108,10 @@ describe('city domain', () => {
     expect(() =>
       placeBuilding(world, 'alice', 'power', { x: 100, y: 0 }),
     ).toThrow('empty');
-    const next = placeBuilding(world, 'alice', 'power', { x: 0, y: 1 });
+    expect(() =>
+      placeBuilding(world, 'alice', 'power', { x: 0, y: 1 }),
+    ).toThrow('roads');
+    const next = placeBuilding(world, 'alice', 'power', { x: 1, y: 1 });
     expect(next.buildings.at(-1)?.creatorId).toBe('alice');
     expect(world.buildings).toHaveLength(3);
   });

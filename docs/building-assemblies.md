@@ -20,11 +20,11 @@ The previous renderer placed parts independently in mixed tile/pixel coordinates
 
 One tile contains a **12 × 12 local-unit kit**. Local z uses the same authored units; conversion to Canvas happens at the rendering boundary. These are art units, not certified engineering dimensions. Touching support faces are permitted; penetrating volumes are not. A frame's empty space is represented by separate solid legs and beam, not by disabling collision checks for the frame.
 
-| Building  | Main process                                 | Heavy equipment                                                        | Roof                                                        | Access                                                         |
-| --------- | -------------------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
-| Power     | Primary generating unit enclosed by the hall | Cooling cell, optional second generator enclosure, heat-exchanger skid | Control room and electrical rack                            | Facade ladder, roof lane, front apron                          |
-| Foundry   | Primary melting furnace enclosed by the hall | Extraction stack or scrubber; optional second furnace bay              | Rooflights in their own strip, controls and electrical rack | Facade ladder, roof lane, furnace approach                     |
-| Warehouse | Sheltered stock and loading doors            | Actual inventory stacks; two-legged handling gantry                    | Controls, electrical rack, optional supported solar array   | Clear door approach, roof lane; free gantry travel above stock |
+| Building  | Main process                                 | Heavy equipment                                                        | Roof                                                             | Access                                                         |
+| --------- | -------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------- |
+| Power     | Primary generating unit enclosed by the hall | Cooling cell, optional second generator enclosure, heat-exchanger skid | Integrated operator floor and electrical rack                    | Facade ladder, roof lane, front apron                          |
+| Foundry   | Primary melting furnace enclosed by the hall | Extraction stack or scrubber; optional second furnace bay              | Rooflights in their own strip and electrical rack                | Facade ladder, roof lane, furnace approach                     |
+| Warehouse | Sheltered stock and loading doors            | Actual inventory stacks; two-legged handling gantry                    | Integrated operator floor, electrical rack, optional solar array | Clear door approach, roof lane; free gantry travel above stock |
 
 The scrubber replaces the extraction bypass in the same bay. It does not appear as an unrelated cylinder. Extra turbines and furnaces are ground-mounted enclosed units. Solar panels sit on support rails. The balcony option is a front terrace deck with a guardrail; the ladder reaches that terrace whether or not the deck is fitted. The internal core connects the upper floors.
 
@@ -34,7 +34,7 @@ Functional references: the [EIA explanation of turbine generators](https://www.e
 
 Foundations follow the actual ground-contact solids of the hall and fitted machinery. Crane legs have separate footings; the span beneath the beam and the surrounding apron stay open at street level. Support validation checks each lowest solid against its supporting faces, so an empty envelope no longer requires a full rectangular plinth. Flat pedestrian paths use the reserved outer margin and front door approach; they never traverse the machinery bays.
 
-The actual city now uses the WFC piece kit. The hall envelope reserves space while its solids are 25 non-overlapping, ground-supported stacks. All ground bays are occupied to enclose the industrial process and attach the existing service ports. The taller rear pads carry controls, the grid mast and an internal core. Rooflights and solar panels occupy their own pinned terraces; the front terrace, entrance approach and facade ladder stay connected.
+The actual city now uses the WFC piece kit. The hall envelope reserves space while its solids are 25 non-overlapping, ground-supported stacks. All ground bays are occupied to enclose the industrial process and attach the existing service ports. The rear-right pad carries the grid mast beside the internal core. The separate control-room box and its rear-left height constraint are removed; operator glazing is integrated into upper hall floors. Rooflights and solar panels occupy their own pinned terraces; the front terrace, entrance approach and facade ladder stay connected.
 
 Shape, role, height and appearance seed determine the layout. Warehouse halls are wider and lower, with a light court above the process floor; power halls can grow taller; foundries reserve a rooflight pad beside the extraction equipment. Modules and stock never reroll the hall. Equipment still changes the existing domain capacities, output, storage and emissions rules.
 
@@ -42,7 +42,7 @@ The generator uses the same adjacency propagation and core reachability as the A
 
 `modular-hall.ts` projects the shared floor/window/brace kit into the hall volume. It caches the static facade in two raster layers, inserting the animated right-side display at its correct depth. Windows follow activity; names remain directly on the front wall. Geometry and raster caches are reused between frames, and offscreen structures are culled. These caches do not claim production-scale performance for 2,500 buildings.
 
-No save migration is required. Existing buildings acquire modular appearances deterministically while their IDs, positions, authors, modules and inventories remain intact. Workshop seed controls reproduce the same layout in preview, ghost, placement and reload.
+Kit version 2 deliberately updates appearances with glazing, clerestories, louvers, ribbed cladding, braced frames and folded daylight roofs. Facade columns keep their construction language between floors. Roles and seeds select these pieces without changing production capacities. IDs, authors, modules and inventories remain intact. Separately, the exact origin founding station moves onto a free plot; see `streets.md`. Workshop seed controls reproduce the same layout in preview, ghost, placement and reload.
 
 ## Ownership in code
 

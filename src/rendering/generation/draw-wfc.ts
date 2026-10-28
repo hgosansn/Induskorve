@@ -132,7 +132,20 @@ export function paintWfcKit(
     for (const right of [false, true]) {
       if (!(right ? bay.right : bay.front) && !view.structure) continue;
       if (!view.structure) {
-        panel(right, 0, 1, 0, 1, right ? p.surface : p.steel);
+        panel(
+          right,
+          0,
+          1,
+          0,
+          1,
+          bay.facade === 'ribs'
+            ? right
+              ? p.steel
+              : p['concrete-shadow']
+            : right
+              ? p.surface
+              : p.steel,
+        );
         if (
           !right &&
           (bay.entrance ||
@@ -145,6 +158,50 @@ export function paintWfcKit(
             view.lights ? accent : p.edge,
             2,
           );
+        } else if (bay.facade === 'louvers') {
+          // Recessed air intake, framed by the load-bearing bay edges.
+          panel(right, 0.13, 0.87, 0.18, 0.85, p.surface);
+          for (let v = 0.25; v < 0.85; v += view.fine === false ? 0.25 : 0.14) {
+            panel(right, 0.15, 0.85, v, v + 0.045, p['concrete-shadow']);
+            line(
+              face(right, 0.15, v - 0.025),
+              face(right, 0.85, v - 0.025),
+              p.ink,
+              0.8,
+            );
+          }
+          if (view.lights && bay.lit)
+            line(face(right, 0.2, 0.9), face(right, 0.45, 0.9), accent, 0.7);
+        } else if (bay.facade === 'ribs') {
+          // Solid insulated enclosure with standing seams and a narrow inspection window.
+          for (const u of view.fine === false ? [0.5] : [0.2, 0.4, 0.6, 0.8]) {
+            line(face(right, u, 0.12), face(right, u, 0.9), p.surface, 1.5);
+            line(
+              face(right, u + 0.025, 0.12),
+              face(right, u + 0.025, 0.9),
+              p.concrete,
+              0.6,
+            );
+          }
+          panel(
+            right,
+            0.22,
+            0.78,
+            0.68,
+            0.83,
+            view.lights && bay.lit ? accent + '77' : p.surface,
+          );
+        } else if (bay.facade === 'clerestory') {
+          panel(
+            right,
+            0.08,
+            0.92,
+            0.63,
+            0.87,
+            view.lights && bay.lit ? accent + '99' : p.surface,
+          );
+          panel(right, 0.1, 0.9, 0.15, 0.52, p['concrete-shadow']);
+          line(face(right, 0.5, 0.63), face(right, 0.5, 0.87), p.steel, 1.5);
         } else {
           panel(right, 0.1, 0.9, 0.24, 0.78, p.ink);
           for (let pane = 0; pane < (view.fine === false ? 1 : 4); pane++) {
@@ -177,7 +234,14 @@ export function paintWfcKit(
         }
       }
       panel(right, 0, 1, 0, 0.09, p['concrete-shadow']);
-      panel(right, 0, 1, 0.94, 1, p.concrete);
+      panel(
+        right,
+        0,
+        1,
+        0.94,
+        1,
+        bay.facade === 'glazing' ? p.steel : p['concrete-shadow'],
+      );
       for (const u of [0, 1])
         line(face(right, u, 0), face(right, u, 1), p['concrete-shadow'], 2);
       if ((bay.braced || bay.core) && view.fine !== false && z > 0) {
@@ -198,6 +262,54 @@ export function paintWfcKit(
         bay.core ? p.steel : p['concrete-shadow'],
         p.edge,
       );
+      if (
+        bay.roof &&
+        actualRoof &&
+        !view.roofOccupied?.has(x + y * building.size)
+      ) {
+        if (bay.roofFinish === 'daylight') {
+          // Folded northlight panels admit daylight to the process floor below.
+          polygon(
+            [
+              [x + 0.15, y + 0.15, top + 0.01],
+              [x + 0.85, y + 0.15, top + 0.01],
+              [x + 0.85, y + 0.6, top + 0.19],
+              [x + 0.15, y + 0.6, top + 0.19],
+            ],
+            p.steel,
+            p.edge,
+          );
+          polygon(
+            [
+              [x + 0.15, y + 0.6, top + 0.19],
+              [x + 0.85, y + 0.6, top + 0.19],
+              [x + 0.85, y + 0.85, top + 0.01],
+              [x + 0.15, y + 0.85, top + 0.01],
+            ],
+            view.lights ? accent + '88' : p.surface,
+            p.concrete,
+          );
+        } else if (bay.roofFinish === 'deck') {
+          for (let u = 0.2; u < 0.9; u += 0.2)
+            line(
+              [x + 0.12, y + u, top + 0.01],
+              [x + 0.88, y + u, top + 0.01],
+              p.steel,
+              0.7,
+            );
+        } else {
+          polygon(
+            [
+              [x + 0.16, y + 0.16, top + 0.01],
+              [x + 0.84, y + 0.16, top + 0.01],
+              [x + 0.84, y + 0.84, top + 0.01],
+              [x + 0.16, y + 0.84, top + 0.01],
+            ],
+            p.steel,
+            p.edge,
+          );
+        }
+      }
       // A perimeter cap and rails only where the adjacent stack ends below this terrace.
       if (
         bay.roof &&

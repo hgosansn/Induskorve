@@ -31,7 +31,7 @@ export function createModularHallRenderer(
     const resolution = Math.max(2, Math.min(8, Math.ceil(zoom * 1.5)));
     let tile = cache.get(b);
     if (!tile || tile.active !== active || tile.resolution !== resolution) {
-      const bays = compileWfcKit(m.recipe),
+      const bays = compileWfcKit(m.recipe, b.type),
         occupied = new Set<number>();
       for (const mount of buildingAssembly(b).mounts.filter(
         (m) => m.support === 'hall' && m.face === 'top',

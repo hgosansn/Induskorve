@@ -15,6 +15,7 @@ import { revealedTerrain } from '../../domain/city/terrain';
 import { tileKey } from '../../domain/city/model';
 import { buildingStats } from '../../domain/city/catalog';
 import type { BuildingStudy } from './building-layout';
+import { isRoadCorridor } from '../../domain/city/plots';
 import {
   buildStreets,
   streetSignature,
@@ -90,6 +91,7 @@ export function projectPlacement(
 ): RenderFrame['preview'] {
   const cell = tileKey(position.x, position.y);
   if (
+    isRoadCorridor(position) ||
     world.buildings.some((b) => tileKey(b.x, b.y) === cell) ||
     !revealedTerrain(world.buildings).has(cell)
   )

@@ -54,8 +54,8 @@ describe('modular city buildings', () => {
   });
   it('rejects a floating roof pad even when its conservative hall envelope looks supported', () => {
     const a = composeBuilding({ type: 'power', h: 85, variant: 0.5 });
-    a.parts.find((p) => p.id === 'hall')!.solids[0]!.h -= 0.2;
-    expect(validateAssembly(a)).toContain('control: unsupported top mount');
+    a.parts.find((p) => p.id === 'hall')!.solids[3]!.h -= 0.2;
+    expect(validateAssembly(a)).toContain('grid: unsupported top mount');
   });
   it('keeps machinery retrofits and stock changes from reshuffling the architecture', () => {
     const b: AssemblyInput = {
@@ -93,14 +93,14 @@ describe('modular city buildings', () => {
       appearances: [{ buildingId: 0, height: 85, seed: 0.2 }],
     };
     const draft = { ...defaultDraft, seed: 0.735, kind: 'warehouse' as const };
-    const ghost = projectPlacement(world, draft, { x: 1, y: 0 })!.building;
+    const ghost = projectPlacement(world, draft, { x: 1, y: 1 })!.building;
     const placed = worldSchema.parse(
       JSON.parse(
         JSON.stringify({
           ...world,
           buildings: [
             ...world.buildings,
-            { id: 1, x: 1, y: 0, type: draft.kind, on: true },
+            { id: 1, x: 1, y: 1, type: draft.kind, on: true },
           ],
           appearances: [
             ...world.appearances,
@@ -114,7 +114,7 @@ describe('modular city buildings', () => {
         }),
       ),
     );
-    const b = projectWorld(placed).buildings.get('1,0')!;
+    const b = projectWorld(placed).buildings.get('1,1')!;
     const workshop = {
       type: draft.kind,
       h: draft.height,

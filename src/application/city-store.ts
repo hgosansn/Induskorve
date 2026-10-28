@@ -5,6 +5,7 @@ import {
   type BuildingModule,
 } from '../domain/city/model';
 import { create } from 'zustand';
+import { relocateFoundingStation } from '../domain/city/plots';
 import { advanceProduction } from '../domain/city/production';
 import type { CityRepository } from './city-repository';
 import {
@@ -80,7 +81,9 @@ export function createCityStore(repository: CityRepository) {
         if (!get().citizenId) throw new Error('Join the city first.');
         set({ draft: parsed, tool: parsed.kind, selectedId: null });
       },
-      world: loaded.world ?? createFoundingWorld(),
+      world: loaded.world
+        ? relocateFoundingStation(loaded.world)
+        : createFoundingWorld(),
       citizenId: null,
       selectedId: null,
       tool: 'inspect',

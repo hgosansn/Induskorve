@@ -21,8 +21,6 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
     clearances: [],
   };
   const { floor, hallH, hallW, roof, gridX, gridY } = assemblyDimensions(b);
-  const shape = b.design?.shape ?? (b.variant > 0.67 ? 'tower' : 'stepped');
-  const controlH = shape === 'tower' ? 3.8 : shape === 'stepped' ? 2.4 : 1.4;
   const add = (
     id: string,
     kind: PartKind,
@@ -37,7 +35,6 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
     const v = mount
       ? { ...mount.volume }
       : volume(0.3, 0.3, 0, 11.4, 11.4, floor);
-    if (kind === 'control') v.h = controlH;
     const p: AssemblyPart = {
       id,
       kind,
@@ -76,13 +73,6 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
   );
   const massing = cityMassing(b, hall.volume);
   hall.solids = massingSolids(massing, hall.volume);
-  add(
-    'control',
-    'control',
-    'Control room',
-    'Houses operators on the supported rear service deck, reached through the internal stair core.',
-    'services',
-  );
   const grid = add(
     'grid',
     'grid',

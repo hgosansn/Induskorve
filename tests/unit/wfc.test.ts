@@ -45,6 +45,43 @@ describe('experimental WFC stack grammar', () => {
       'Disconnected floor 2',
     );
   });
+  it('assigns repeatable role-specific facade pieces without changing supporting floor geometry', () => {
+    const result = generateWfc(43, 'spire');
+    if (result.status !== 'solved') throw Error('Expected solution');
+    const power = compileWfcKit(result.building, 'power'),
+      factory = compileWfcKit(result.building, 'factory'),
+      freight = compileWfcKit(result.building, 'warehouse');
+    expect(power).toEqual(compileWfcKit(result.building, 'power'));
+    expect(factory.map((b) => b.facade)).not.toEqual(
+      power.map((b) => b.facade),
+    );
+    expect(freight.map((b) => b.facade)).not.toEqual(
+      power.map((b) => b.facade),
+    );
+    expect(
+      new Set([...power, ...factory, ...freight].map((b) => b.facade)).size,
+    ).toBe(5);
+    expect(factory.some((b) => b.roofFinish === 'daylight')).toBe(true);
+    expect(
+      factory.map(({ x, y, floor, front, right, roof }) => ({
+        x,
+        y,
+        floor,
+        front,
+        right,
+        roof,
+      })),
+    ).toEqual(
+      power.map(({ x, y, floor, front, right, roof }) => ({
+        x,
+        y,
+        floor,
+        front,
+        right,
+        roof,
+      })),
+    );
+  });
   it('compiles shared walls away and exactly one supported bay per occupied storey', () => {
     const result = generateWfc(43, 'spire');
     if (result.status !== 'solved') throw Error('Expected solution');

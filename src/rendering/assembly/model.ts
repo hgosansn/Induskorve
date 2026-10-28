@@ -47,7 +47,6 @@ export interface Volume {
 export type PartKind =
   | 'foundation'
   | 'hall'
-  | 'control'
   | 'cooler'
   | 'turbine'
   | 'exchanger'

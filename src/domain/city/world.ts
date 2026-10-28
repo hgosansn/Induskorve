@@ -18,6 +18,7 @@ import {
 } from './model';
 import { revealedTerrain } from './terrain';
 import { calculateNetworks } from './networks';
+import { isRoadCorridor, relocateFoundingStation } from './plots';
 
 export function configureModules(
   world: WorldSnapshot,
@@ -110,7 +111,7 @@ export function createFoundingWorld(): WorldSnapshot {
     }
   world.buildings.push({ id: 0, x: 0, y: 0, type: 'power', on: true });
   world.appearances.push({ buildingId: 0, height: 85, seed: 0.6 });
-  return world;
+  return relocateFoundingStation(world);
 }
 function requireCitizen(
   world: WorldSnapshot,
@@ -156,6 +157,8 @@ export function placeBuilding(
     !revealedTerrain(world.buildings).has(cell)
   )
     throw new Error('Choose empty, revealed ground at the city edge.');
+  if (isRoadCorridor(p))
+    throw new Error('Keep roads clear. Choose a plot beside the sidewalk.');
   const id = Math.max(-1, ...world.buildings.map((b) => b.id)) + 1;
   if (!Number.isSafeInteger(id))
     throw new Error('Structure identifier limit reached.');

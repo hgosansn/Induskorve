@@ -97,23 +97,23 @@ describe('building assembly contracts', () => {
   });
   it('detects a collision instead of exempting equipment in the same layer', () => {
     const a = composeBuilding(input('power'));
-    const control = a.parts.find((p) => p.id === 'control')!,
+    const cooler = a.parts.find((p) => p.id === 'cooler')!,
       grid = a.parts.find((p) => p.id === 'grid')!;
-    control.volume = { ...grid.volume };
-    control.solids = [control.volume];
-    expect(validateAssembly(a)).toContain('control intersects grid');
+    cooler.volume = { ...grid.volume };
+    cooler.solids = [cooler.volume];
+    expect(validateAssembly(a)).toContain('grid intersects cooler');
   });
   it('rejects floating or incompatible parts and blocked maintenance lanes', () => {
     const a = composeBuilding(input('power')),
-      p = a.parts.find((p) => p.id === 'control')!;
+      p = a.parts.find((p) => p.id === 'grid')!;
     p.volume.z += 0.2;
-    expect(validateAssembly(a)).toContain('control: unsupported top mount');
+    expect(validateAssembly(a)).toContain('grid: unsupported top mount');
     p.kind = 'cooler';
-    expect(validateAssembly(a)).toContain('control: incompatible mount');
+    expect(validateAssembly(a)).toContain('grid: incompatible mount');
     const access = a.clearances.find((c) => c.id === 'roof-access')!.volume;
     p.volume.y = access.y;
     p.volume.z = access.z;
-    expect(validateAssembly(a)).toContain('control blocks roof-access');
+    expect(validateAssembly(a)).toContain('grid blocks roof-access');
   });
   it('rejects disconnected and intersecting process ducts', () => {
     const a = composeBuilding(input('power'));
@@ -153,6 +153,7 @@ describe('building assembly contracts', () => {
       expect(order.indexOf(m.support)).toBeLessThan(
         order.indexOf(a.parts.find((p) => p.mount === m.id)!.id),
       );
-    expect(order.indexOf('control')).toBeLessThan(order.indexOf('cooler'));
+    expect(order.indexOf('hall')).toBeLessThan(order.indexOf('grid'));
+    expect(a.parts.some((p) => p.id === 'control')).toBe(false);
   });
 });

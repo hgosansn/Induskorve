@@ -1,4 +1,5 @@
 import { tileKey, type Building, type Position } from './model';
+import { isRoadCorridor } from './plots';
 
 // Clockwise, starting north. Geometry and pedestrian navigation share these arms.
 export const STREET_DIRECTIONS = [
@@ -60,7 +61,7 @@ export function buildStreets(
   };
   const { roads, nodes, neighbors, edges } = layout;
   for (const [key, p] of terrain)
-    if (!buildings.has(key) && (p.x % 4 === 0 || p.y % 4 === 0))
+    if (!buildings.has(key) && isRoadCorridor(p))
       roads.set(key, { ...p, arms: [], crossings: [] });
   const add = (
     id: string,

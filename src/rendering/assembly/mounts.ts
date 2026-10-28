@@ -42,7 +42,6 @@ export function buildingMounts(b: AssemblyInput): Mount[] {
     face: Mount['face'] = 'top',
   ) => mounts.push({ id: `${id}-mount`, accepts, volume: v, support, face });
   bay('hall', ['hall'], volume(0.8, 0.8, floor, hallW, hallD, hallH));
-  bay('control', ['control'], volume(1.1, 1.0, roof, 2.1, 1.8, 4), 'hall');
   bay('grid', ['grid'], volume(gridX, gridY, roof, 1.7, 1.4, 2.7), 'hall');
   bay('terminal', ['terminal'], volume(10.7, 10.7, floor, 0.6, 0.6, 1.3));
   bay(

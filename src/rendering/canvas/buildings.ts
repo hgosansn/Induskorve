@@ -128,12 +128,6 @@ export function createBuildingRenderer(
         case 'hall':
           drawHall(b, v, active, options.zoom, options.facade);
           break;
-        case 'control':
-          box(v, g.dark);
-          box(volume(x, y, top - 0.12, w, d, 0.12), g.steel);
-          for (let zz = z + 0.65; zz < top - 0.2; zz += 0.7)
-            strip(x + 0.2, y + d + 0.005, zz, w - 0.4, p.foreground);
-          break;
         case 'cooler': {
           slab(v, 0.35);
           const core = volume(

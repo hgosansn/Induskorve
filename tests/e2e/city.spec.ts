@@ -15,6 +15,72 @@ async function join(page: import('@playwright/test').Page) {
   await page.getByLabel('Citizen name', { exact: true }).fill('Builder');
   await page.getByRole('button', { name: 'Enter the city' }).click();
 }
+test('repairs the founding intersection and rejects construction on roads', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  const saved = JSON.stringify({
+    version: 3,
+    buildings: [
+      { id: 0, x: 0, y: 0, type: 'power', on: true },
+      { id: 1, x: 1, y: 1, type: 'factory', on: true },
+    ],
+    appearances: [
+      { buildingId: 0, height: 85, seed: 0.6 },
+      { buildingId: 1, height: 40, seed: 0.3 },
+    ],
+    citizens: [],
+  });
+  await page.evaluate(
+    (value) => localStorage.setItem('induskorve:city:v3', value),
+    saved,
+  );
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Join city' })).toBeVisible();
+  expect(
+    await page.evaluate(() => localStorage.getItem('induskorve:city:v3')),
+  ).toBe(saved);
+  await join(page);
+  const repaired = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem('induskorve:city:v3')!),
+  );
+  const station = repaired.buildings.find((b: { id: number }) => b.id === 0);
+  expect(station.x % 4).not.toBe(0);
+  expect(station.y % 4).not.toBe(0);
+  expect(repaired.buildings[1]).toEqual({
+    id: 1,
+    x: 1,
+    y: 1,
+    type: 'factory',
+    on: true,
+  });
+  await page.getByRole('button', { name: 'Add building' }).click();
+  await page.getByRole('button', { name: 'Choose location' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const canvas = page.locator('main > canvas'),
+    box = (await canvas.boundingBox())!;
+  const zoom = Math.min(box.width / 1100, box.height / 750) * 1.1;
+  await canvas.click({
+    position: {
+      x: box.width * 0.53 - 13.5 * zoom,
+      y: box.height * 0.53 + 27 * zoom,
+    },
+  });
+  await expect(
+    page.getByText('Keep roads clear. Choose a plot beside the sidewalk.', {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Cancel placement' }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem('induskorve:city:v3')!).buildings,
+    ),
+  ).toEqual(repaired.buildings);
+});
 test('workshop design persists through ghost placement and reload', async ({
   page,
 }) => {
@@ -28,7 +94,7 @@ test('workshop design persists through ghost placement and reload', async ({
       JSON.stringify({
         version: 3,
         buildings: [{ id: 0, x: 0, y: 0, type: 'power', on: true }],
-        appearances: [{ buildingId: 0, height: 85, seed: 0.6 }],
+        appearances: [{ buildingId: 0, height: 85, seed: 0.5 }],
         citizens: [],
       }),
     ),
