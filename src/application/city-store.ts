@@ -2,11 +2,15 @@ import {
   defaultDraft,
   draftSchema,
   type BuildingDraft,
+  type BuildingModule,
 } from '../domain/city/model';
 import { create } from 'zustand';
+import { advanceProduction } from '../domain/city/production';
 import type { CityRepository } from './city-repository';
 import {
   createFoundingWorld,
+  dispatchMetal,
+  configureModules,
   joinLocalCity,
   placeBuilding,
   setBillboard,
@@ -21,6 +25,9 @@ import type {
 } from '../domain/city/model';
 
 export interface CityState {
+  configure(id: number, modules: BuildingModule[]): void;
+  dispatch(id: number): void;
+  tick(): void;
   draft: BuildingDraft;
   prepare(draft: BuildingDraft): void;
   world: WorldSnapshot;
@@ -58,6 +65,15 @@ export function createCityStore(repository: CityRepository) {
       set({ world, warning });
     };
     return {
+      configure(id, modules) {
+        commit(configureModules(get().world, get().citizenId, id, modules));
+      },
+      dispatch(id) {
+        commit(dispatchMetal(get().world, get().citizenId, id));
+      },
+      tick() {
+        if (get().citizenId) commit(advanceProduction(get().world));
+      },
       draft: defaultDraft,
       prepare(draft) {
         const parsed = draftSchema.parse(draft);

@@ -1,13 +1,20 @@
 import type { Citizen } from '../../domain/city/model';
 import { tileKey } from '../../domain/city/model';
 import type { RenderWorld, Walker } from './view-model';
+import { readPalette } from '../palette';
 
-const coats = ['#a4b297', '#b69869', '#7eaaa2', '#be8075'];
 export function syncWalkers(
   walkers: Walker[],
   citizens: readonly Citizen[],
   world: RenderWorld,
 ): Walker[] {
+  const palette = readPalette();
+  const coats = [
+    palette.concrete,
+    palette.power,
+    palette.materials,
+    palette.production,
+  ];
   const ids = new Set(citizens.map((c) => c.id));
   const next = walkers.filter(
     (w) => w.ambient || (w.person && ids.has(w.person.id)),

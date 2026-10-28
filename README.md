@@ -57,7 +57,7 @@ The isolated server workspace defines structures, appearances, citizens, presenc
 ## Current boundaries
 
 - Names provide local editing convenience, not authentication. Joined local citizens may operate structures; there is no demolition action.
-- Power/storage dependencies are simulated. Metal output is illustrative.
+- Local production advances every 10 seconds while joined and visible. Foundries fill warehouse stockpiles, stop at capacity, and resume after dispatch. Raw feedstock is unlimited; mining, fuel and construction costs are future work.
 - Ambient walkers are visual agents, not real users.
 - Local billboard uploads accept PNG/JPEG/WebP/GIF up to 1.5 MB. Animated GIF playback is not guaranteed by Canvas.
 - The preserved artwork module is JavaScript behind a typed boundary. Other application code and the server schema use strict TypeScript.
@@ -65,4 +65,12 @@ The isolated server workspace defines structures, appearances, citizens, presenc
 
 ## Building workshop
 
-After joining, use **Add building** to choose purpose, shape, height, chimney stacks, service balcony and an animated facade display. The workshop renders the configuration before **Choose location** activates its ghost. Click revealed empty ground to place one building; Escape/right-click cancels. **City** contains camera, network and session controls; the bottom of the canvas stays clear. Appearance settings are optional in existing saves and persist separately from simulation entities.
+After joining, use **Add building** to choose purpose, functional modules, service-core shape, height, balcony and optional facade display. The workshop renders the configuration before **Choose location** activates its ghost. Click revealed empty ground to place one building; Escape/right-click cancels. **City** contains camera, network and session controls; the bottom of the canvas stays clear. Appearance settings are optional in existing saves and persist separately from simulation entities.
+
+## Composable industry and visual language
+
+Buildings have distinct machinery: turbine halls, sawtooth foundries and warehouse loading sheds. Functional modules live on domain entities; silhouettes, finish and displays remain in appearance records. Existing structures can be retrofitted from the inspector. Turbines add capacity; heat recovery supplies a nearby connected foundry; furnaces raise demand/output; scrubbers reduce the visible operating footprint; loading bays add connections/storage; solar roofs lower warehouse grid demand.
+
+The placement ghost forecasts its power/storage status and links before construction. Copper pipes indicate recovered heat, yellow suspended wires carry electricity, and blue dots indicate logistics. Warehouse stacks reflect stored metal. Ground tint reflects current emissions, not persistent environmental damage or a pollution penalty.
+
+`src/app/palette.css` is the sole authored color source for Tailwind and Canvas, including pedestrians, adverts, semantic accents and terrain. `src/rendering/palette.ts` resolves those CSS tokens at renderer creation. Reload after editing palette values. The interface uses square corners, thin borders and flat surfaces, including dialogs, notifications and native controls.

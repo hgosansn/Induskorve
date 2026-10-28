@@ -60,3 +60,9 @@ Use generated `DbConnection.builder()` with URI/database, authenticated token pr
 6. Validate backup/restore, schema migrations, monitoring, instance limits, retention and load before public launch.
 
 Local city data is never imported into the shared world automatically.
+
+## Local machinery pilot → future authority
+
+The prepared schema now includes `buildingModule` (canonical building ID + module kind), `warehouseStockpile` (metal per warehouse) and `world.shippedMetal`. These additions have only been typechecked; no schema deployment or data migration has run. Add authenticated configure/dispatch reducers with revision checks, matching module-kind validation, duplicate prevention, stockpile capacity checks, and a single server-owned production schedule before connecting clients. The local 10-second timer must be disabled in live mode. Do not accept client stock totals or run one simulation timer per connection.
+
+Import the shared gameplay definitions through a dedicated common package during integration; do not duplicate balancing constants inside reducers. New tables need atomic foreign-reference validation and subscribed chunk joins. Raw feedstock is currently unlimited; fuel, ore and construction consumption need explicit server recipes and bootstrap reserves in a later iteration.

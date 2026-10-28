@@ -4,21 +4,30 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BUILDINGS, RULES } from '../../domain/city/catalog';
+import {
+  BUILDINGS,
+  RULES,
+  MODULES,
+  buildingStats,
+} from '../../domain/city/catalog';
 import { calculateNetworks, serviceStatus } from '../../domain/city/networks';
 import type { CityStore } from '../../application/city-store';
+import { moduleKinds, type BuildingModule } from '../../domain/city/model';
 
 export function StructureInspector({ store }: { store: CityStore }) {
   const world = store((s) => s.world),
     id = store((s) => s.selectedId),
     citizenId = store((s) => s.citizenId);
   const networks = useMemo(
-    () => calculateNetworks(world.buildings),
-    [world.buildings],
+    () => calculateNetworks(world.buildings, world.economy?.stockpiles),
+    [world.buildings, world.economy],
   );
   const b = world.buildings.find((b) => b.id === id);
   if (!b) return null;
   const n = networks.services.get(b.id)!;
+  const stats = buildingStats(b);
+  const stock =
+    world.economy?.stockpiles.find((s) => s.buildingId === b.id)?.metal ?? 0;
   const attempt = (action: () => void) => {
     try {
       action();
@@ -55,27 +64,27 @@ export function StructureInspector({ store }: { store: CityStore }) {
         {serviceStatus(b, n)}
       </p>
       <dl className="space-y-3 text-xs leading-relaxed">
-        <div className="border-t border-border pt-3 text-[#ebca5e]">
+        <div className="border-t border-border pt-3 text-power">
           <dt>POWER {b.type === 'power' ? 'SOURCE' : 'INPUT'}</dt>
           <dd>
             {b.type === 'power'
-              ? `${n.load} / ${RULES.powerCapacity} units`
+              ? `${n.load} / ${stats.powerCapacity} units`
               : n.powerId !== undefined
                 ? `Station #${n.powerId} · ${n.demand} units`
                 : `Needs a station within ${RULES.powerRange} tiles`}
           </dd>
         </div>
         {b.type === 'warehouse' && (
-          <div className="text-[#70b7e3]">
+          <div className="text-materials">
             <dt>MATERIALS HUB</dt>
             <dd>
-              {n.stockLoad} / {RULES.storageCapacity} foundries served
+              {n.stockLoad} / {stats.storageCapacity} foundries served
             </dd>
           </div>
         )}
         {b.type === 'factory' && (
           <>
-            <div className="text-[#70b7e3]">
+            <div className="text-materials">
               <dt>MATERIALS LINK</dt>
               <dd>
                 {n.storageId !== undefined
@@ -83,20 +92,89 @@ export function StructureInspector({ store }: { store: CityStore }) {
                   : `Needs powered storage within ${RULES.storageRange} tiles`}
               </dd>
             </div>
-            <div className="text-[#d59065]">
+            <div className="text-production">
               <dt>METAL OUTPUT</dt>
-              <dd>{n.active ? 12 : 0} / cycle · illustrative</dd>
+              <dd>
+                {n.output} metal / 10 s
+                {n.heatId !== undefined &&
+                  ` · +4 recovered heat from #${n.heatId}`}
+              </dd>
             </div>
           </>
         )}
       </dl>
+      {b.modules?.length ? (
+        <ul className="mt-4 space-y-2 border-t border-border pt-3 text-xs">
+          {b.modules.map((m) => (
+            <li key={m}>
+              <strong>{MODULES[m].label}</strong>
+              <br />
+              <span className="text-muted-foreground">
+                {MODULES[m].description}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {b.type === 'warehouse' && (
+        <p className="mt-4 font-mono text-sm text-materials">
+          {stock} / {stats.metalCapacity} metal stored
+        </p>
+      )}
+      {stats.emissions > 0 && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Ground pollution: {n.active ? stats.emissions : 0} · current operating
+          footprint
+        </p>
+      )}
       <p className="my-5 text-[11px] leading-relaxed text-muted-foreground">
         Local services · sagging wires carry power.
         <br />
-        Airborne dots indicate a material link.
+        Blue dots indicate logistics; copper pipes recover heat.
       </p>
       {citizenId ? (
         <div className="space-y-4 border-t border-border pt-4">
+          <fieldset className="space-y-3">
+            <legend className="eyebrow mb-3">Configure machinery</legend>
+            {(Object.keys(MODULES) as BuildingModule[])
+              .filter((m) => moduleKinds[m] === b.type)
+              .map((m) => (
+                <Label key={m} className="items-start">
+                  <input
+                    type="checkbox"
+                    checked={b.modules?.includes(m) ?? false}
+                    onChange={(e) =>
+                      attempt(() =>
+                        store
+                          .getState()
+                          .configure(
+                            b.id,
+                            e.target.checked
+                              ? [...(b.modules ?? []), m]
+                              : (b.modules ?? []).filter((v) => v !== m),
+                          ),
+                      )
+                    }
+                  />
+                  <span>
+                    {MODULES[m].label}
+                    <span className="mt-1 block text-xs font-normal leading-relaxed text-muted-foreground">
+                      {MODULES[m].description}
+                    </span>
+                  </span>
+                </Label>
+              ))}
+          </fieldset>
+          {b.type === 'warehouse' && (
+            <Button
+              variant="outline"
+              className="w-full"
+              disabled={stock === 0 || !n.active}
+              onClick={() => attempt(() => store.getState().dispatch(b.id))}
+            >
+              Dispatch {stock} metal
+            </Button>
+          )}
           <Button
             variant="outline"
             className="w-full"

@@ -13,8 +13,10 @@ import {
 } from '../../domain/city/networks';
 import { revealedTerrain } from '../../domain/city/terrain';
 import { tileKey } from '../../domain/city/model';
+import { buildingStats } from '../../domain/city/catalog';
 
 export interface RenderBuilding extends Building {
+  stock?: number;
   design?: BuildingDesign;
   h: number;
   variant: number;
@@ -33,7 +35,7 @@ export interface RenderNetwork extends ServiceState {
   storage?: RenderBuilding;
 }
 export interface RenderLink {
-  kind: 'power' | 'materials';
+  kind: 'power' | 'materials' | 'heat';
   from: RenderBuilding;
   to: RenderBuilding;
   active: boolean;
@@ -41,11 +43,16 @@ export interface RenderLink {
 }
 export interface RenderWorld {
   buildings: Map<string, RenderBuilding>;
-  terrain: Map<string, Position>;
+  terrain: Map<string, Position & { exposure?: number }>;
   net: Map<RenderBuilding, RenderNetwork>;
   links: RenderLink[];
 }
 export interface RenderFrame extends RenderWorld {
+  preview?: {
+    building: RenderBuilding;
+    service: RenderNetwork;
+    links: RenderLink[];
+  };
   draft?: BuildingDraft;
   W: number;
   H: number;
@@ -62,6 +69,41 @@ export interface RenderFrame extends RenderWorld {
   layer: NetworkLayer;
   walkers: Walker[];
 }
+export function projectPlacement(
+  world: WorldSnapshot,
+  draft: BuildingDraft,
+  position: Position,
+): RenderFrame['preview'] {
+  const cell = tileKey(position.x, position.y);
+  if (
+    world.buildings.some((b) => tileKey(b.x, b.y) === cell) ||
+    !revealedTerrain(world.buildings).has(cell)
+  )
+    return undefined;
+  const id = Math.max(-1, ...world.buildings.map((b) => b.id)) + 1;
+  const projected = projectWorld({
+    ...world,
+    buildings: [
+      ...world.buildings,
+      { ...position, id, type: draft.kind, modules: draft.modules, on: true },
+    ],
+    appearances: [
+      ...world.appearances,
+      {
+        buildingId: id,
+        height: draft.height,
+        seed: draft.seed,
+        design: draft.design,
+      },
+    ],
+  });
+  const building = projected.buildings.get(cell)!;
+  return {
+    building,
+    service: projected.net.get(building)!,
+    links: projected.links.filter((l) => l.from.id === id || l.to.id === id),
+  };
+}
 export function projectWorld(world: WorldSnapshot): RenderWorld {
   const appearances = new Map(world.appearances.map((a) => [a.buildingId, a]));
   const byId = new Map(
@@ -71,6 +113,9 @@ export function projectWorld(world: WorldSnapshot): RenderWorld {
         b.id,
         {
           ...b,
+          stock:
+            world.economy?.stockpiles.find((s) => s.buildingId === b.id)
+              ?.metal ?? 0,
           h: appearance?.height ?? 35,
           variant: appearance?.seed ?? 0.5,
           adImage: appearance?.billboard,
@@ -79,10 +124,26 @@ export function projectWorld(world: WorldSnapshot): RenderWorld {
       ] as const;
     }),
   );
-  const networks = calculateNetworks(world.buildings);
+  const networks = calculateNetworks(
+    world.buildings,
+    world.economy?.stockpiles,
+  );
+  const terrain: RenderWorld['terrain'] = revealedTerrain(world.buildings);
+  // Local operational footprint: scrubbers and outages change the surrounding ground.
+  for (const b of world.buildings) {
+    if (!networks.services.get(b.id)?.active) continue;
+    const emissions = buildingStats(b).emissions;
+    for (let dy = -2; dy <= 2; dy++)
+      for (let dx = -2; dx <= 2; dx++) {
+        const distance = Math.hypot(dx, dy);
+        const tile = terrain.get(tileKey(b.x + dx, b.y + dy));
+        if (tile && distance <= 2)
+          tile.exposure = (tile.exposure ?? 0) + emissions / (1 + distance);
+      }
+  }
   return {
     buildings: new Map([...byId.values()].map((b) => [tileKey(b.x, b.y), b])),
-    terrain: revealedTerrain(world.buildings),
+    terrain,
     net: new Map(
       [...byId.values()].map((b) => {
         const service = networks.services.get(b.id)!;

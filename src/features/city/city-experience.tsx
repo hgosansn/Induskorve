@@ -74,9 +74,15 @@ export function CityExperience({ store }: { store: CityStore }) {
                   <DialogDescription>
                     {world.buildings.length} structures ·{' '}
                     {world.citizens.length} local citizens · 24 ambient walkers.
-                    Saved in this browser.
+                    Saved in this browser. Local production runs every 10
+                    seconds while joined and visible; raw feedstock is unlimited
+                    in this pilot.
                   </DialogDescription>
                 </DialogHeader>
+                <p className="border-t border-border pt-3 font-mono text-xs">
+                  Cycle {world.economy?.cycle ?? 0} ·{' '}
+                  {world.economy?.shippedMetal ?? 0} metal dispatched
+                </p>
                 <ToggleGroup
                   type="single"
                   value={layer}
@@ -170,13 +176,13 @@ export function CityExperience({ store }: { store: CityStore }) {
         {warning && (
           <p
             role="alert"
-            className="surface absolute left-4 top-40 max-w-sm p-3 text-xs text-amber-200"
+            className="surface absolute left-4 top-40 max-w-sm p-3 text-xs text-power"
           >
             {warning}
           </p>
         )}
       </main>
-      <Toaster theme="dark" position="top-center" closeButton richColors />
+      <Toaster theme="dark" position="top-center" closeButton />
     </MotionConfig>
   );
 }

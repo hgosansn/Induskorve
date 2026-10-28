@@ -1,4 +1,8 @@
-import type { BuildingKind, Position } from '../domain/city/model';
+import type {
+  BuildingKind,
+  BuildingModule,
+  Position,
+} from '../domain/city/model';
 
 // SDK-independent live boundary. Generated bindings belong in infrastructure.
 export type LiveId = bigint;
@@ -21,7 +25,21 @@ export type CityCommand =
       kind: 'place';
       requestId: string;
       buildingKind: BuildingKind;
+      modules?: BuildingModule[];
       position: Position;
+    }
+  | {
+      kind: 'configure-modules';
+      requestId: string;
+      buildingId: LiveId;
+      modules: BuildingModule[];
+      expectedRevision: bigint;
+    }
+  | {
+      kind: 'dispatch-metal';
+      requestId: string;
+      buildingId: LiveId;
+      expectedRevision: bigint;
     }
   | {
       kind: 'set-operating';

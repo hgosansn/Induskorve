@@ -10,6 +10,7 @@ const spacetimedb = schema({
       schemaVersion: t.u32(),
       revision: t.u64(),
       tick: t.u64(),
+      shippedMetal: t.u64(),
     },
   ),
   citizen: table(
@@ -43,6 +44,24 @@ const spacetimedb = schema({
       kind: t.string(),
       enabled: t.bool(),
       creator: t.identity(),
+      revision: t.u64(),
+    },
+  ),
+  buildingModule: table(
+    { public: true },
+    {
+      id: t.string().primaryKey(), // buildingId:moduleKind, validated by future reducers
+      buildingId: t.u64().index(),
+      chunkKey: t.string().index(),
+      kind: t.string(),
+    },
+  ),
+  warehouseStockpile: table(
+    { public: true },
+    {
+      buildingId: t.u64().primaryKey(),
+      chunkKey: t.string().index(),
+      metal: t.u64(),
       revision: t.u64(),
     },
   ),

@@ -13,6 +13,8 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Input } from '@/components/ui/input';
 import {
   defaultDraft,
+  moduleKinds,
+  type BuildingModule,
   type BuildingDraft,
   type BuildingKind,
   type BuildingDesign,
@@ -20,6 +22,7 @@ import {
 import type { CityStore } from '../../application/city-store';
 import { createArtwork } from '../../rendering/canvas/artwork.js';
 import { projectWorld } from '../../rendering/canvas/view-model';
+import { MODULES, buildingStats } from '../../domain/city/catalog';
 import { Plus } from 'lucide-react';
 
 function BuildingPreview({ draft }: { draft: BuildingDraft }) {
@@ -33,7 +36,16 @@ function BuildingPreview({ draft }: { draft: BuildingDraft }) {
     const world = projectWorld({
       version: 3,
       citizens: [],
-      buildings: [{ id: 0, x: 0, y: 0, type: draft.kind, on: true }],
+      buildings: [
+        {
+          id: 0,
+          x: 0,
+          y: 0,
+          type: draft.kind,
+          on: true,
+          modules: draft.modules,
+        },
+      ],
       appearances: [
         {
           buildingId: 0,
@@ -56,9 +68,9 @@ function BuildingPreview({ draft }: { draft: BuildingDraft }) {
         W: rect.width,
         H: rect.height,
         dpr,
-        zoom: 1.8,
+        zoom: 3,
         panX: 0,
-        panY: 100,
+        panY: 45,
         clock: reduced ? 0 : time / 1000,
         mode: 'inspect',
         grid: false,
@@ -80,13 +92,21 @@ function BuildingPreview({ draft }: { draft: BuildingDraft }) {
     <canvas
       ref={canvas}
       aria-label="Configured building preview"
-      className="h-80 w-full rounded border border-border"
+      className="h-64 w-full border border-border"
     />
   );
 }
 export function BuildingWorkshop({ store }: { store: CityStore }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<BuildingDraft>(defaultDraft);
+  const stats = buildingStats({
+    id: -1,
+    x: 0,
+    y: 0,
+    type: draft.kind,
+    on: true,
+    modules: draft.modules,
+  });
   const design = (patch: Partial<BuildingDesign>) =>
     setDraft((d) => ({ ...d, design: { ...d.design, ...patch } }));
   return (
@@ -106,20 +126,21 @@ export function BuildingWorkshop({ store }: { store: CityStore }) {
           Add building
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="max-h-[90dvh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Design your building</DialogTitle>
           <DialogDescription>
-            Choose its purpose, silhouette and details. Then find its place in
-            the city.
+            Compose its machinery, then choose its place in the industrial
+            network.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-6 sm:grid-cols-2">
-          <div>
+        <div className="grid min-h-0 gap-6 overflow-y-auto sm:grid-cols-2">
+          <div className="self-start sm:sticky sm:top-0">
             <BuildingPreview draft={draft} />
             <p className="mt-3 text-xs text-muted-foreground">
-              One tile footprint · appearance stays the same when placed.
-              Activity and lighting respond to nearby services.
+              One tile footprint · machinery shown in operating condition.
+              Power, storage and neighboring heat recovery determine actual
+              output.
             </p>
           </div>
           <div className="space-y-5">
@@ -129,7 +150,12 @@ export function BuildingWorkshop({ store }: { store: CityStore }) {
                 type="single"
                 value={draft.kind}
                 onValueChange={(v) => {
-                  if (v) setDraft((d) => ({ ...d, kind: v as BuildingKind }));
+                  if (v)
+                    setDraft((d) => ({
+                      ...d,
+                      kind: v as BuildingKind,
+                      modules: [],
+                    }));
                 }}
                 aria-label="Building purpose"
               >
@@ -175,17 +201,46 @@ export function BuildingWorkshop({ store }: { store: CityStore }) {
               />
             </div>
             <fieldset className="space-y-2">
-              <legend className="mb-2 text-sm">Features</legend>
-              <Label>
-                <input
-                  type="checkbox"
-                  checked={draft.design.stacks}
-                  disabled={draft.kind === 'warehouse'}
-                  onChange={(e) => design({ stacks: e.target.checked })}
-                />
-                Chimney stacks{' '}
-                {draft.kind === 'warehouse' && '(industrial plants only)'}
-              </Label>
+              <legend className="mb-2 text-sm">Functional modules</legend>
+              {(Object.keys(MODULES) as BuildingModule[])
+                .filter((m) => moduleKinds[m] === draft.kind)
+                .map((m) => (
+                  <Label
+                    key={m}
+                    className="items-start border border-border p-3"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={draft.modules?.includes(m) ?? false}
+                      onChange={(e) =>
+                        setDraft((d) => ({
+                          ...d,
+                          modules: e.target.checked
+                            ? [...(d.modules ?? []), m]
+                            : d.modules?.filter((v) => v !== m),
+                        }))
+                      }
+                    />
+                    <span>
+                      {MODULES[m].label}
+                      <span className="mt-1 block text-xs font-normal leading-relaxed text-muted-foreground">
+                        {MODULES[m].description}
+                      </span>
+                    </span>
+                  </Label>
+                ))}
+              <p className="border-l-2 border-primary pl-3 font-mono text-xs leading-relaxed">
+                {draft.kind === 'power'
+                  ? `${stats.powerCapacity} power available`
+                  : `${stats.demand} power required`}
+                {draft.kind === 'factory' &&
+                  ` · ${stats.output} metal / 10 s + recovered heat`}
+                {draft.kind === 'warehouse' &&
+                  ` · ${stats.storageCapacity} connections · ${stats.metalCapacity} metal capacity`}
+              </p>
+            </fieldset>
+            <fieldset className="space-y-2">
+              <legend className="mb-2 text-sm">Facade details</legend>
               <Label>
                 <input
                   type="checkbox"
@@ -211,9 +266,10 @@ export function BuildingWorkshop({ store }: { store: CityStore }) {
             </fieldset>
             <Button
               variant="outline"
+              disabled={draft.design.display === 'none'}
               onClick={() => setDraft((d) => ({ ...d, seed: Math.random() }))}
             >
-              Vary finish and display artwork
+              Vary display artwork
             </Button>
           </div>
         </div>

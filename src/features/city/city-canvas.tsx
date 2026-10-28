@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { CityStore } from '../../application/city-store';
 import { createCityScene, type CityScene } from '../../rendering/canvas/scene';
 import { toast } from 'sonner';
+import { RULES } from '../../domain/city/catalog';
 
 export function CityCanvas({
   store,
@@ -28,9 +29,13 @@ export function CityCanvas({
       },
     });
     const unsubscribe = store.subscribe((state) => scene.update(state));
+    const timer = window.setInterval(() => {
+      if (!document.hidden) store.getState().tick();
+    }, RULES.cycleMs);
     onReady(scene);
     return () => {
       unsubscribe();
+      window.clearInterval(timer);
       scene.dispose();
       onReady(null);
     };

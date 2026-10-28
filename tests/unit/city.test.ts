@@ -1,3 +1,8 @@
+import { advanceProduction } from '../../src/domain/city/production';
+import {
+  projectWorld,
+  projectPlacement,
+} from '../../src/rendering/canvas/view-model';
 import { describe, expect, it } from 'vitest';
 import {
   createFoundingWorld,
@@ -5,8 +10,15 @@ import {
   placeBuilding,
   toggleBuilding,
   setBillboard,
+  configureModules,
+  dispatchMetal,
 } from '../../src/domain/city/world';
-import { worldSchema, type WorldSnapshot } from '../../src/domain/city/model';
+import {
+  worldSchema,
+  defaultDraft,
+  draftSchema,
+  type WorldSnapshot,
+} from '../../src/domain/city/model';
 import { calculateNetworks } from '../../src/domain/city/networks';
 import { revealedTerrain } from '../../src/domain/city/terrain';
 import {
@@ -245,5 +257,128 @@ describe('live integration contracts', () => {
         database: 'city',
       }).success,
     ).toBe(true);
+  });
+});
+
+describe('composable industry', () => {
+  it('makes furnace demand and nearby recovered heat change actual production', () => {
+    let world = chain();
+    world.buildings[2] = { ...world.buildings[2]!, x: 1, y: 1 };
+    world = configureModules(world, 'alice', 0, ['heat-exchanger']);
+    world = configureModules(world, 'alice', 2, ['furnace']);
+    const network = calculateNetworks(world.buildings);
+    expect(network.services.get(2)).toMatchObject({
+      demand: 18,
+      output: 22,
+      heatId: 0,
+    });
+    expect(advanceProduction(world).economy?.stockpiles).toEqual([
+      { buildingId: 1, metal: 22 },
+    ]);
+    const far = {
+      ...world,
+      buildings: world.buildings.map((b) =>
+        b.id === 2 ? { ...b, x: 2, y: 1 } : b,
+      ),
+    };
+    expect(calculateNetworks(far.buildings).services.get(2)?.output).toBe(18);
+    expect(
+      advanceProduction(toggleBuilding(world, 'alice', 0)).economy
+        ?.stockpiles[0]?.metal,
+    ).toBe(0);
+  });
+  it('allocates added turbine capacity and prioritizes logistics', () => {
+    const world = chain();
+    world.buildings = [
+      world.buildings[0]!,
+      ...Array.from({ length: 8 }, (_, i) => ({
+        id: i + 1,
+        x: (i % 3) + 1,
+        y: Math.floor(i / 3),
+        type: 'factory' as const,
+        on: true,
+      })),
+      { id: 20, x: 0, y: 1, type: 'warehouse', on: true },
+    ];
+    const base = calculateNetworks(world.buildings);
+    expect(base.services.get(20)?.powered).toBe(true);
+    expect(base.services.get(0)?.load).toBe(78);
+    const expanded = calculateNetworks(
+      configureModules(world, 'alice', 0, ['turbine']).buildings,
+    );
+    expect(expanded.services.get(0)?.load).toBe(102);
+    expect(expanded.services.get(8)?.active).toBe(true);
+  });
+  it('stores bounded production, stops when full, dispatches and resumes without losing saves', () => {
+    let world = chain();
+    for (let i = 0; i < 20; i++) world = advanceProduction(world);
+    expect(world.economy?.stockpiles[0]?.metal).toBe(200);
+    expect(
+      calculateNetworks(
+        world.buildings,
+        world.economy?.stockpiles,
+      ).services.get(2),
+    ).toMatchObject({ active: false, storageFull: true, output: 0 });
+    expect(() => dispatchMetal(world, null, 1)).toThrow('Join');
+    const restored = worldSchema.parse(JSON.parse(JSON.stringify(world)));
+    const shipped = dispatchMetal(restored, 'alice', 1);
+    expect(shipped.economy?.shippedMetal).toBe(200);
+    expect(advanceProduction(shipped).economy?.stockpiles[0]?.metal).toBe(12);
+    expect(world.economy?.stockpiles[0]?.metal).toBe(200);
+  });
+  it('does not discard inventory when removing a loading bay', () => {
+    let world = configureModules(chain(), 'alice', 1, ['loading-bay']);
+    for (let i = 0; i < 20; i++) world = advanceProduction(world);
+    expect(() => configureModules(world, 'alice', 1, [])).toThrow('Dispatch');
+    expect(
+      configureModules(dispatchMetal(world, 'alice', 1), 'alice', 1, [])
+        .buildings[1]?.modules,
+    ).toEqual([]);
+  });
+  it('rejects incompatible or duplicate machinery while retaining old worlds', () => {
+    expect(worldSchema.safeParse(chain()).success).toBe(true);
+    expect(() => configureModules(chain(), 'alice', 2, ['turbine'])).toThrow();
+    expect(() =>
+      configureModules(chain(), 'alice', 0, ['turbine', 'turbine']),
+    ).toThrow();
+    expect(
+      draftSchema.safeParse({ ...defaultDraft, modules: ['solar-roof'] })
+        .success,
+    ).toBe(false);
+    const world = chain();
+    world.buildings[2]!.modules = ['loading-bay'];
+    expect(worldSchema.safeParse(world).success).toBe(false);
+  });
+  it('reduces the local ground footprint with a scrubber and removes it during outages', () => {
+    const world = chain();
+    const raw = projectWorld(world).terrain.get('2,0')!.exposure!;
+    const scrubbed = projectWorld(
+      configureModules(world, 'alice', 2, ['scrubber']),
+    ).terrain.get('2,0')!.exposure!;
+    expect(raw - scrubbed).toBeCloseTo(3);
+    expect(
+      projectWorld(toggleBuilding(world, 'alice', 0)).terrain.get('2,0')
+        ?.exposure ?? 0,
+    ).toBe(0);
+  });
+  it('forecasts the same services as placement without changing the saved world', () => {
+    const world = chain();
+    const before = JSON.stringify(world);
+    const draft = { ...defaultDraft, modules: ['furnace' as const] };
+    const forecast = projectPlacement(world, draft, { x: 1, y: 1 });
+    const placed = placeBuilding(
+      world,
+      'alice',
+      'factory',
+      { x: 1, y: 1 },
+      draft,
+    );
+    const actual = calculateNetworks(placed.buildings).services.get(
+      forecast!.building.id,
+    );
+    expect(forecast?.service.output).toBe(actual?.output);
+    expect(forecast?.service.demand).toBe(18);
+    expect(JSON.stringify(world)).toBe(before);
+    expect(projectPlacement(world, draft, { x: 0, y: 0 })).toBeUndefined();
   });
 });

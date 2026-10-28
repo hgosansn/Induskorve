@@ -1,5 +1,10 @@
-import { draftSchema, type BuildingDraft } from './model';
-import { RULES } from './catalog';
+import {
+  draftSchema,
+  defaultDraft,
+  type BuildingDraft,
+  type BuildingModule,
+} from './model';
+import { RULES, buildingStats } from './catalog';
 import {
   buildingKindSchema,
   citizenSchema,
@@ -12,6 +17,65 @@ import {
   type WorldSnapshot,
 } from './model';
 import { revealedTerrain } from './terrain';
+import { calculateNetworks } from './networks';
+
+export function configureModules(
+  world: WorldSnapshot,
+  citizenId: string | null,
+  id: number,
+  modules: BuildingModule[],
+): WorldSnapshot {
+  requireCitizen(world, citizenId);
+  const building = world.buildings.find((b) => b.id === id);
+  if (!building) throw new Error('Structure no longer exists.');
+  const parsed = draftSchema.parse({
+    ...defaultDraft,
+    kind: building.type,
+    modules,
+  });
+  const updated = { ...building, modules: parsed.modules };
+  const stock =
+    world.economy?.stockpiles.find((s) => s.buildingId === id)?.metal ?? 0;
+  if (stock > buildingStats(updated).metalCapacity)
+    throw new Error('Dispatch stored metal before removing the loading bay.');
+  return {
+    ...world,
+    buildings: world.buildings.map((b) => (b.id === id ? updated : b)),
+  };
+}
+
+export function dispatchMetal(
+  world: WorldSnapshot,
+  citizenId: string | null,
+  id: number,
+): WorldSnapshot {
+  requireCitizen(world, citizenId);
+  const warehouse = world.buildings.find(
+    (b) => b.id === id && b.type === 'warehouse',
+  );
+  if (
+    !warehouse ||
+    !calculateNetworks(world.buildings).services.get(id)?.active
+  )
+    throw new Error('Dispatch needs a powered warehouse.');
+  const economy = world.economy;
+  const stock =
+    economy?.stockpiles.find((s) => s.buildingId === id)?.metal ?? 0;
+  if (!economy || !stock) throw new Error('No metal ready for dispatch.');
+  return {
+    ...world,
+    economy: {
+      ...economy,
+      shippedMetal: Math.min(
+        Number.MAX_SAFE_INTEGER,
+        (economy.shippedMetal ?? 0) + stock,
+      ),
+      stockpiles: economy.stockpiles.map((s) =>
+        s.buildingId === id ? { ...s, metal: 0 } : s,
+      ),
+    },
+  };
+}
 
 export function createFoundingWorld(): WorldSnapshot {
   let seed = 84;
@@ -104,6 +168,7 @@ export function placeBuilding(
         type,
         id,
         on: true,
+        modules: configured?.modules,
         creatorId: citizen.id,
         creator: citizen.name,
       },

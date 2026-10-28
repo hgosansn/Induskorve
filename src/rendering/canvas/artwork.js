@@ -1,3 +1,6 @@
+import { serviceStatus } from '../../domain/city/networks';
+import { readPalette } from '../palette';
+import { hasModule } from '../../domain/city/catalog';
 // Preserved procedural Canvas artwork. No persistence, DOM UI, or gameplay mutations.
 // Its typed boundary is artwork.d.ts; camera/input/lifecycle live in scene.ts.
 export function createArtwork(ctx) {
@@ -19,26 +22,25 @@ export function createArtwork(ctx) {
     walkers,
     citizen,
     layer,
-    draft;
+    draft,
+    preview;
   const key = (x, y) => `${x},${y}`;
+  const P = readPalette();
   const COLORS = {
-    power: '#ebca5e',
-    materials: '#70b7e3',
-    factory: '#d59065',
-    warehouse: '#70b7e3',
+    power: P.power,
+    materials: P.materials,
+    heat: P.production,
+    factory: P.production,
+    warehouse: P.materials,
   };
   const iso = (x, y, z = 0) => [(x - y) * 27, (x + y) * 13.5 - z];
+  const roofHeight = (b) => (b.type === 'warehouse' ? b.h * 0.4 : b.h * 0.55);
   function attachment(b, kind) {
-    const h = b.design
-      ? b.h
-      : b.type === 'warehouse'
-        ? 16 + variation(b, 2) * 16
-        : b.h;
     return {
-      x: b.x + (kind === 'power' ? 0.46 : 0.64),
-      y: b.y + (kind === 'power' ? 0.51 : 0.4),
-      z: h + 3 + (kind === 'power' ? 15 : 11),
-      base: h + 3,
+      x: b.x + (kind === 'power' ? 0.46 : 0.77),
+      y: b.y + (kind === 'power' ? 0.51 : 0.38),
+      z: roofHeight(b) + (kind === 'power' ? 16 : 11),
+      base: roofHeight(b) + 3,
     };
   }
   function port(b, kind) {
@@ -54,18 +56,36 @@ export function createArtwork(ctx) {
   function drawConnections(t) {
     if (layer === 'off') return;
     for (const l of links) {
-      if (layer !== 'all' && layer !== l.kind) continue;
+      if (
+        layer !== 'all' &&
+        layer !== l.kind &&
+        !(layer === 'power' && l.kind === 'heat')
+      )
+        continue;
       const related = selected && (l.from === selected || l.to === selected),
         dim = selected && !related,
         a = port(l.from, l.kind),
         b = port(l.to, l.kind),
         span = Math.hypot(a[0] - b[0], a[1] - b[1]);
       ctx.save();
-      if (l.kind === 'power') {
+      if (l.kind === 'heat') {
+        ctx.globalAlpha = dim ? 0.1 : 0.85;
+        const start = iso(
+          l.from.x + 0.82,
+          l.from.y + 0.55,
+          roofHeight(l.from) + 7,
+        );
+        const end = iso(l.to.x + 0.22, l.to.y + 0.25, roofHeight(l.to) + 3);
+        const lowA = iso(l.from.x + 0.82, l.from.y + 0.55, 5);
+        const lowB = iso(l.to.x + 0.22, l.to.y + 0.25, 5);
+        line(start, lowA, P.production, related ? 3 : 2);
+        line(lowB, end, P.production, related ? 3 : 2);
+        line(lowA, lowB, P.production, related ? 3 : 2);
+      } else if (l.kind === 'power') {
         // A continuous suspended wire sags under its weight between roof insulators.
         const sag = Math.max(8, Math.min(31, span * 0.17));
         ctx.globalAlpha = dim ? 0.06 : related ? 0.9 : l.active ? 0.52 : 0.18;
-        ctx.strokeStyle = l.active ? '#d7b955' : '#747055';
+        ctx.strokeStyle = l.active ? P['power'] : P['steel'];
         ctx.lineWidth = related ? 1.35 : 0.65 + l.weight * 0.45;
         ctx.beginPath();
         ctx.moveTo(...a);
@@ -84,7 +104,7 @@ export function createArtwork(ctx) {
             p = connectionPoint(a, b, q, arch);
           ctx.globalAlpha =
             (dim ? 0.06 : related ? 0.95 : 0.6) * Math.sin(Math.PI * q);
-          ctx.fillStyle = '#85c9e7';
+          ctx.fillStyle = P['materials'];
           ctx.beginPath();
           ctx.arc(...p, related ? 1.2 : 0.85, 0, Math.PI * 2);
           ctx.fill();
@@ -93,72 +113,30 @@ export function createArtwork(ctx) {
       ctx.restore();
     }
   }
-  function buildingIdentity(b, t, ghost) {
-    const n = net.get(b),
-      color = COLORS[b.type] || COLORS.factory;
-    let h = b.design
-      ? b.h
-      : b.type === 'warehouse'
-        ? 16 + variation(b, 2) * 16
-        : b.h;
-    // Colored fascia on two faces is readable even with network lines hidden.
-    poly(
-      [
-        iso(b.x + 0.17, b.y + 0.88, 6),
-        iso(b.x + 0.8, b.y + 0.88, 6),
-        iso(b.x + 0.8, b.y + 0.88, 9),
-        iso(b.x + 0.17, b.y + 0.88, 9),
-      ],
-      color + 'b0',
-    );
-    poly(
-      [
-        iso(b.x + 0.88, b.y + 0.17, 6),
-        iso(b.x + 0.88, b.y + 0.8, 6),
-        iso(b.x + 0.88, b.y + 0.8, 9),
-        iso(b.x + 0.88, b.y + 0.17, 9),
-      ],
-      color + '75',
-    );
-    let p = iso(b.x + 0.52, b.y + 0.52, h + 13);
-    ctx.fillStyle = color;
-    ctx.font = 'bold 7px monospace';
+  function buildingIdentity(b) {
+    if (b.type !== 'power') {
+      const receiver = attachment(b, 'materials');
+      const base = iso(receiver.x, receiver.y, receiver.base);
+      const top = iso(receiver.x, receiver.y, receiver.z);
+      line(base, top, P.materials, 1);
+      line([top[0] - 3, top[1] - 2], [top[0] + 3, top[1] + 2], P.materials, 1);
+      line([top[0] - 3, top[1] + 2], [top[0] + 3, top[1] - 2], P.materials, 1);
+    }
+    const p = attachment(b, 'power'),
+      base = iso(p.x, p.y, p.base),
+      top = iso(p.x, p.y, p.z);
+    line(base, top, P.concrete, 1.2);
+    line([top[0] - 4, top[1]], [top[0] + 4, top[1]], P.power, 1.3);
+    for (const dx of [-4, 0, 4])
+      line([top[0] + dx, top[1] - 2], [top[0] + dx, top[1] + 2], P.concrete, 1);
+    const label = iso(b.x + 0.42, b.y + 0.85, 7);
+    ctx.fillStyle = COLORS[b.type];
+    ctx.font = 'bold 5px monospace';
     ctx.textAlign = 'center';
     ctx.fillText(
-      b.type === 'power' ? 'ϟ' : b.type === 'warehouse' ? '▤' : '▥',
-      p[0],
-      p[1],
+      b.type === 'power' ? 'PWR' : b.type === 'factory' ? 'FE' : 'HUB',
+      ...label,
     );
-    // Real rooftop hardware replaces abstract circular endpoint markers.
-    {
-      const p = attachment(b, 'power'),
-        base = iso(p.x, p.y, p.base),
-        top = iso(p.x, p.y, p.z);
-      line(base, top, '#738274', 1.5);
-      line([top[0] - 5, top[1] + 2], [top[0] + 5, top[1] + 2], '#9b9b7b', 1.4);
-      for (const dx of [-4, 0, 4]) {
-        line(
-          [top[0] + dx, top[1] + 3],
-          [top[0] + dx, top[1] - 1],
-          '#aaa88a',
-          1.5,
-        );
-        line(
-          [top[0] + dx - 1.5, top[1] + 1],
-          [top[0] + dx + 1.5, top[1] + 1],
-          '#d4be79',
-          0.7,
-        );
-      }
-    }
-    if (b.type !== 'power') {
-      const p = attachment(b, 'materials'),
-        base = iso(p.x, p.y, p.base),
-        top = iso(p.x, p.y, p.z);
-      line(base, top, '#6c8c8c', 1);
-      line([top[0] - 3, top[1] + 3], [top[0] + 3, top[1] - 1], '#81a9ac', 1);
-      line([top[0] - 3, top[1] - 1], [top[0] + 3, top[1] + 3], '#81a9ac', 1);
-    }
   }
   function variation(b, n) {
     let v =
@@ -170,18 +148,23 @@ export function createArtwork(ctx) {
   function pedestrian(w, t) {
     let p = iso(w.x, w.y);
     let mine = citizen && w.person?.id === citizen.id;
-    ctx.fillStyle = '#07120e77';
+    ctx.fillStyle = P['ink'] + '77';
     ctx.beginPath();
     ctx.ellipse(p[0], p[1], 2.8, 1.1, 0, 0, 7);
     ctx.fill();
     let stride = Math.sin(t * 8 + w.phase) * 1.1;
-    line([p[0] - 0.6, p[1] - 2], [p[0] - stride, p[1]], '#26372d', 1);
-    line([p[0] + 0.6, p[1] - 2], [p[0] + stride, p[1]], '#26372d', 1);
-    line([p[0], p[1] - 2], [p[0], p[1] - 5], mine ? '#e5e9a4' : w.color, 2);
-    ctx.fillStyle = '#c3b391';
+    line([p[0] - 0.6, p[1] - 2], [p[0] - stride, p[1]], P['surface'], 1);
+    line([p[0] + 0.6, p[1] - 2], [p[0] + stride, p[1]], P['surface'], 1);
+    line(
+      [p[0], p[1] - 2],
+      [p[0], p[1] - 5],
+      mine ? P['foreground'] : w.color,
+      2,
+    );
+    ctx.fillStyle = P['muted'];
     ctx.fillRect(p[0] - 0.8, p[1] - 7, 1.6, 1.7);
     if (mine) {
-      ctx.strokeStyle = '#dcebad88';
+      ctx.strokeStyle = P['foreground'] + '88';
       ctx.beginPath();
       ctx.ellipse(p[0], p[1], 4, 2, 0, 0, 7);
       ctx.stroke();
@@ -209,9 +192,9 @@ export function createArtwork(ctx) {
       B = iso(x + w, y, z + h),
       C = iso(x + w, y + d, z + h),
       E = iso(x, y + d, z + h);
-    poly([b, c, C, B], colors[1], '#192525');
-    poly([c, e, E, C], colors[2], '#192525');
-    poly([A, B, C, E], colors[0], '#52615a');
+    poly([b, c, C, B], colors[1], P['ink']);
+    poly([c, e, E, C], colors[2], P['ink']);
+    poly([A, B, C, E], colors[0], P['edge']);
   }
   function line(a, b, color, width = 1) {
     ctx.beginPath();
@@ -240,12 +223,7 @@ export function createArtwork(ctx) {
         w = 96,
         h = 160,
         phase = t + v(51) * 20,
-        palette = [
-          ['#7ad9cd', '#193e40', '#e9f5b5'],
-          ['#d891ad', '#492b44', '#f7d1b5'],
-          ['#d9bd66', '#3c4230', '#eef2c0'],
-          ['#7da7df', '#263752', '#bbecde'],
-        ][Math.floor(v(52) * 4)];
+        palette = [COLORS[b.type], P.ink, P.foreground];
       g.fillStyle = palette[1];
       g.fillRect(0, 0, w, h);
       let image = null;
@@ -341,9 +319,9 @@ export function createArtwork(ctx) {
         g.fillText('TRANSMISSION / ' + String(b.id).padStart(3, '0'), 48, 150);
       }
       // LED scanlines and a slow scanning highlight, tied to this building's phase.
-      g.fillStyle = '#0a181955';
+      g.fillStyle = P['ink'] + '55';
       for (let yy = 0; yy < h; yy += 3) g.fillRect(0, yy, w, 1);
-      g.fillStyle = '#e6fff414';
+      g.fillStyle = P['foreground'] + '14';
       g.fillRect(0, ((phase * 15) % 180) - 20, w, 16);
     }
     const top = iso(x, y, z + height);
@@ -359,284 +337,178 @@ export function createArtwork(ctx) {
     );
     ctx.globalAlpha = on ? 0.85 : 0.15;
     ctx.drawImage(entry.canvas, 0, 0);
-    ctx.strokeStyle = on ? '#acc7b377' : '#354b3a';
+    ctx.strokeStyle = on ? P['concrete'] + '77' : P['steel'];
     ctx.lineWidth = 2;
     ctx.strokeRect(0, 0, 96, 160);
     ctx.restore();
   }
   function building(b, t, ghost = false) {
-    let { x, y, h, type } = b;
-    let on = ghost ? true : (net.get(b)?.active ?? b.on);
-    const v = (n) => variation(b.design ? { ...b, x: 0, y: 0 } : b, n);
-    ctx.globalAlpha = ghost ? 0.5 : 1;
-    let styles = [
-      ['#667064', '#3e4d44', '#2d3d35'],
-      ['#65716e', '#3b4f49', '#283c37'],
-      ['#746b5d', '#504a3c', '#393e32'],
-      ['#586461', '#364641', '#273b35'],
-    ];
-    let c = styles[Math.floor(v(1) * styles.length)],
-      tall = b.design ? h : type === 'warehouse' ? 16 + v(2) * 16 : h;
-    let w = 0.57 + v(3) * 0.22,
-      d = 0.58 + v(4) * 0.22,
-      ox = 0.1 + (1 - w) * 0.2,
-      oy = 0.1 + (1 - d) * 0.2;
-    face(x + 0.06, y + 0.06, 0.88, 0.88, 0, 3, [
-      '#515c4b',
-      '#303e33',
-      '#28372d',
-    ]);
-    // Tiered masses and attached machinery change silhouettes without changing footprints.
-    if (b.design?.shape === 'tower') {
-      w = 0.5;
-      d = 0.5;
-      ox = 0.25;
-      oy = 0.25;
-    }
-    let tier = b.design
-      ? b.design.shape === 'stepped'
-      : v(6) > 0.55 && type !== 'warehouse';
-    face(x + ox, y + oy, w, d, 3, tier ? tall * 0.68 : tall, c);
-    if (tier)
-      face(
-        x + ox + 0.09,
-        y + oy + 0.08,
-        w - 0.18,
-        d - 0.16,
-        3 + tall * 0.68,
-        tall * 0.32,
-        [c[0], c[1], c[2]],
-      );
-    for (let n = 0; n < 5; n++) {
-      let xx = ox + 0.045 + (n * (w - 0.09)) / 5;
-      line(
-        iso(x + xx, y + oy + d, 4),
-        iso(x + xx, y + oy + d, tier ? tall * 0.67 : tall + 2),
-        '#67725c',
-        0.7,
-      );
-    }
-    // Deterministic occupancy per window, on both visible facades.
-    let lamp = v(11) > 0.72 ? '#7fbdb0' : v(11) > 0.45 ? '#d9a56a' : '#e0bc75';
-    for (let z = 9; z < tall - 1; z += 7)
-      for (let n = 0; n < 4; n++) {
-        let xx = ox + 0.06 + (n * (w - 0.1)) / 4;
-        let lit = on && v(40 + n + z * 2) > 0.43;
+    const { x, y, type } = b,
+      h = roofHeight(b);
+    const n = net.get(b),
+      on = n?.active ?? (ghost || b.on);
+    const concrete = [P['concrete-light'], P.concrete, P['concrete-shadow']];
+    const steel = [P.edge, P.steel, P.surface];
+    const accent = COLORS[type],
+      lit = on ? accent : P.steel;
+    ctx.save();
+    if (ghost) ctx.globalAlpha = 0.65;
+    // A working yard, not a random collection of decorative rooftop objects.
+    face(x + 0.04, y + 0.04, 0.92, 0.92, 0, 3, steel);
+    if (type === 'power') {
+      // Long turbine hall, switchyard and paired exhaust towers.
+      face(x + 0.1, y + 0.32, 0.78, 0.52, 3, h, concrete);
+      const turbines = hasModule(b, 'turbine') ? 3 : 2;
+      for (let i = 0; i < turbines; i++) {
+        face(x + 0.12 + i * 0.25, y + 0.08, 0.19, 0.19, 3, h + 12, steel);
+        face(x + 0.12 + i * 0.25, y + 0.08, 0.19, 0.19, h + 11, 3, [
+          accent,
+          accent,
+          P.steel,
+        ]);
+      }
+      for (let i = 0; i < 5; i++)
+        line(
+          iso(x + 0.16 + i * 0.13, y + 0.85, 12),
+          iso(x + 0.16 + i * 0.13, y + 0.85, h),
+          P.steel,
+          1.5,
+        );
+      if (hasModule(b, 'heat-exchanger')) {
+        face(x + 0.72, y + 0.38, 0.2, 0.35, h + 3, 7, [
+          P.production,
+          P.soot,
+          P.steel,
+        ]);
+        for (let i = 0; i < 3; i++)
+          line(
+            iso(x + 0.73, y + 0.42 + i * 0.08, h + 11),
+            iso(x + 0.92, y + 0.42 + i * 0.08, h + 11),
+            P.production,
+            1.3,
+          );
+      }
+    } else if (type === 'factory') {
+      // Low sawtooth production hall and a tall furnace; expansion is real hardware.
+      face(x + 0.12, y + 0.14, 0.72, 0.7, 3, h, steel);
+      const bays = b.design?.shape === 'tower' ? 2 : 3;
+      for (let i = 0; i < bays; i++) {
+        const yy = y + 0.17 + i * 0.2;
         poly(
           [
-            iso(x + xx, y + oy + d + 0.004, z),
-            iso(x + xx + 0.058, y + oy + d + 0.004, z),
-            iso(x + xx + 0.058, y + oy + d + 0.004, z + 3),
-            iso(x + xx, y + oy + d + 0.004, z + 3),
+            iso(x + 0.12, yy, h + 3),
+            iso(x + 0.84, yy, h + 3),
+            iso(x + 0.84, yy + 0.17, h + 10),
+            iso(x + 0.12, yy + 0.17, h + 10),
           ],
-          lit ? lamp : '#192d28',
+          P.concrete,
+          P.edge,
         );
-        if (v(60 + n + z) > 0.35) {
-          let yy = oy + 0.05 + (n * (d - 0.1)) / 4;
-          poly(
-            [
-              iso(x + ox + w + 0.004, y + yy, z),
-              iso(x + ox + w + 0.004, y + yy + 0.05, z),
-              iso(x + ox + w + 0.004, y + yy + 0.05, z + 2),
-              iso(x + ox + w + 0.004, y + yy, z + 2),
-            ],
-            on && v(80 + n + z) > 0.55 ? lamp : '#1b302b',
-          );
-        }
       }
-    if (type === 'warehouse') {
-      for (let n = 0; n < 6; n++)
-        line(
-          iso(x + ox + 0.04 + (n * w) / 7, y + oy, tall + 3),
-          iso(x + ox + 0.04 + (n * w) / 7, y + oy + d, tall + 3),
-          '#85907d',
-          0.8,
-        );
-      face(x + 0.3, y + 0.8, 0.25, 0.1, 3, 10, [
-        '#64735d',
-        '#26382c',
-        '#16291e',
-      ]);
-      for (let n = 0; n < 3; n++)
-        face(x + 0.08 + n * 0.13, y + 0.84, 0.1, 0.1, 3, 3 + v(n + 18) * 4, [
-          '#998667',
-          '#5b6147',
-          '#414e36',
+      const furnaces = hasModule(b, 'furnace') ? 2 : 1;
+      for (let i = 0; i < furnaces; i++) {
+        face(x + 0.12 + i * 0.31, y + 0.12, 0.2, 0.22, h, b.h * 0.5, concrete);
+        face(x + 0.12 + i * 0.31, y + 0.12, 0.2, 0.22, h + b.h * 0.5, 2, [
+          P.ink,
+          P.ink,
+          P.ink,
         ]);
-    } else {
-      // Roof ventilation or chimneys; only some factories have stacks.
-      let count = b.design
-        ? b.design.stacks
-          ? 2
-          : 0
-        : type === 'power'
-          ? 2 + Math.floor(v(14) * 2)
-          : v(15) > 0.45
-            ? 1
-            : 0;
-      for (let k = 0; k < count; k++) {
-        let sx = x + ox + 0.08 + k * 0.2,
-          sy = y + oy + 0.1,
-          sh = type === 'power' ? 27 + v(16 + k) * 38 : 14 + v(16 + k) * 28;
-        face(sx, sy, 0.09, 0.1, tall + 3, sh, [
-          '#9a9981',
-          '#63715b',
-          '#405440',
-        ]);
-        for (let band = 9; band < sh; band += 13)
-          face(sx - 0.006, sy - 0.006, 0.102, 0.112, tall + 3 + band, 1.8, [
-            '#a18f6c',
-            '#877a55',
-            '#5b6044',
-          ]);
-        if (on && !ghost) {
-          let p = iso(sx + 0.04, sy + 0.05, tall + sh + 4);
-          for (let i = 0; i < 6; i++) {
-            let phase = (t * 0.085 + i / 6 + v(17 + k)) % 1;
-            ctx.beginPath();
-            ctx.ellipse(
-              p[0] + phase * 23,
-              p[1] - phase * 55,
-              2 + phase * 12,
-              1 + phase * 7,
-              -0.4,
-              0,
-              7,
-            );
-            ctx.fillStyle = `rgba(160,174,143,${(1 - phase) * 0.08})`;
-            ctx.fill();
-          }
-        }
       }
-      face(x + ox + 0.2, y + oy + 0.25, 0.22, 0.22, tall + 3, 5, [
-        '#84907b',
-        '#4d6351',
-        '#344b3b',
-      ]);
-      let vent = iso(x + ox + 0.31, y + oy + 0.36, tall + 8);
-      ctx.strokeStyle = '#293f32';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.ellipse(vent[0], vent[1], 4, 2, 0, 0, 7);
-      ctx.stroke();
-      if (on)
-        line(
-          [vent[0] - Math.cos(t * 2) * 3, vent[1] - Math.sin(t * 2)],
-          [vent[0] + Math.cos(t * 2) * 3, vent[1] + Math.sin(t * 2)],
-          '#b1b399',
-          1,
+      for (let i = 0; i < furnaces + 1; i++) {
+        const xx = x + 0.19 + i * 0.21;
+        poly(
+          [
+            iso(xx, y + 0.85, 4),
+            iso(xx + 0.14, y + 0.85, 4),
+            iso(xx + 0.14, y + 0.85, 13),
+            iso(xx, y + 0.85, 13),
+          ],
+          lit,
         );
-    }
-    // Service balconies, ladders, and an asymmetric exterior pipe.
-    if (b.design ? b.design.balcony : v(20) > 0.45) {
-      let z = Math.max(8, tall * 0.48);
-      face(x + ox - 0.035, y + oy + d, 0.5, 0.12, z, 2, [
-        '#8a8f71',
-        '#536750',
-        '#314932',
-      ]);
-      line(
-        iso(x + ox, y + oy + d + 0.12, z + 6),
-        iso(x + ox + 0.48, y + oy + d + 0.12, z + 6),
-        '#a5a88b',
-        0.8,
-      );
-      for (let n = 0; n < 5; n++)
-        line(
-          iso(x + ox + n * 0.11, y + oy + d + 0.12, z),
-          iso(x + ox + n * 0.11, y + oy + d + 0.12, z + 6),
-          '#73856b',
-          0.7,
-        );
-    }
-    if (v(22) > 0.5) {
-      let xx = x + ox + w - 0.04;
-      line(
-        iso(xx, y + oy + d + 0.015, 4),
-        iso(xx, y + oy + d + 0.015, tall + 5),
-        '#889379',
-        1.8,
-      );
-      for (let z = 5; z < tall; z += 4)
-        line(
-          iso(xx - 0.06, y + oy + d + 0.02, z),
-          iso(xx + 0.025, y + oy + d + 0.02, z),
-          '#8a9879',
-          0.8,
-        );
-    }
-    // Front-facing signs are freestanding letters, not boxed screens.
-    {
-      let p = iso(
-        x + ox + w * 0.5,
-        y + oy + d + 0.025,
-        Math.max(12, tall * 0.68),
-      );
-      ctx.save();
-      ctx.translate(...p);
-      ctx.transform(1, 0.5, 0, 1, 0, 0);
-      ctx.font = 'bold 6px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = on ? '#c2d3b4' : '#566d59';
+      }
+      if (hasModule(b, 'scrubber'))
+        face(x + 0.61, y + 0.17, 0.19, 0.24, h + 3, 16, concrete);
       if (on) {
-        ctx.shadowColor = '#a8ceb4';
-        ctx.shadowBlur = 3;
+        for (let i = 0; i < (hasModule(b, 'scrubber') ? 1 : 4); i++) {
+          const q = (t * 0.16 + i * 0.25) % 1;
+          const p = iso(x + 0.22 + q * 0.25, y + 0.22, h + b.h * 0.5 + q * 26);
+          ctx.save();
+          ctx.globalAlpha *= (1 - q) * 0.2;
+          ctx.fillStyle = P.muted;
+          ctx.fillRect(p[0] - q * 4, p[1], 3 + q * 9, 2 + q * 5);
+          ctx.restore();
+        }
       }
-      ctx.fillText(
-        ['ION', 'NØR', 'K-7', 'OXIDE', 'VEKT', 'ARC'][Math.floor(v(26) * 6)],
-        0,
-        0,
-      );
-      ctx.restore();
+    } else {
+      // Broad warehouse shed, shipping doors and inventory stacks.
+      face(x + 0.1, y + 0.1, 0.78, 0.65, 3, h, concrete);
+      for (let i = 0; i < 3; i++) {
+        const xx = x + 0.16 + i * 0.23;
+        poly(
+          [
+            iso(xx, y + 0.76, 3),
+            iso(xx + 0.16, y + 0.76, 3),
+            iso(xx + 0.16, y + 0.76, h - 1),
+            iso(xx, y + 0.76, h - 1),
+          ],
+          P.ink,
+          lit,
+        );
+      }
+      if (hasModule(b, 'solar-roof')) {
+        for (let i = 0; i < 3; i++)
+          face(x + 0.14 + i * 0.23, y + 0.2, 0.18, 0.4, h + 3, 2, [
+            P.materials,
+            P.steel,
+            P.ink,
+          ]);
+      }
+      if (hasModule(b, 'loading-bay')) {
+        face(x + 0.05, y + 0.8, 0.9, 0.17, 3, 3, steel);
+        line(
+          iso(x + 0.06, y + 0.9, 7),
+          iso(x + 0.94, y + 0.9, 7),
+          P.materials,
+          2,
+        );
+      }
+      const stacks = Math.min(4, Math.ceil((b.stock ?? 0) / 100));
+      for (let i = 0; i < stacks; i++)
+        face(x + 0.12 + i * 0.19, y + 0.8, 0.15, 0.15, 6, 6, [
+          P.materials,
+          P.steel,
+          P.surface,
+        ]);
     }
-    // The broad right-hand wall carries a nearly full-height LED advertising surface.
-    if (tall > 22 && b.design?.display !== 'none') {
-      drawAdvert(
-        b,
-        t,
-        x + ox + w + 0.008,
-        y + oy + 0.025,
-        d - 0.05,
-        8,
-        tall - 11,
-        on,
-      );
-    }
-    // Side sheds, fuel tanks, roof antennas and scattered warning lights.
-    if (v(28) > 0.6)
-      face(x + 0.7, y + 0.42, 0.2, 0.3, 3, 9 + v(29) * 8, [
-        '#6c7c66',
-        '#435a44',
-        '#304a34',
-      ]);
-    if (v(30) > 0.65) {
+    // Shape composes the service core; purpose-specific machinery remains legible.
+    if (b.design?.shape === 'tower')
+      face(x + 0.53, y + 0.42, 0.25, 0.26, h + 3, b.h * 0.32, steel);
+    if (b.design?.shape === 'stepped')
+      face(x + 0.35, y + 0.37, 0.38, 0.3, h + 3, 8, steel);
+    if (b.design?.balcony) {
       line(
-        iso(x + 0.6, y + 0.5, tall + 5),
-        iso(x + 0.6, y + 0.5, tall + 22),
-        '#9ca88c',
-        0.7,
-      );
-      line(
-        iso(x + 0.5, y + 0.5, tall + 18),
-        iso(x + 0.7, y + 0.5, tall + 18),
-        '#9ca88c',
-        0.7,
+        iso(x + 0.12, y + 0.89, h * 0.7),
+        iso(x + 0.84, y + 0.89, h * 0.7),
+        P.concrete,
+        1.5,
       );
     }
-    if (on && v(32) > 0.6) {
-      let p = iso(x + 0.23, y + 0.25, tall + 6);
-      ctx.fillStyle = Math.sin(t * 2 + b.id) > 0.2 ? '#d3825d' : '#6c6045';
-      ctx.fillRect(p[0], p[1], 1.5, 1.5);
-    }
+    if (b.design?.display === 'animated' || b.adImage)
+      drawAdvert(b, t, x + 0.89, y + 0.2, 0.48, 8, Math.max(10, h - 7), on);
+    buildingIdentity(b);
     if (selected === b) {
-      let p = iso(x + 0.5, y + 0.5, tall + 18);
-      ctx.fillStyle = '#e0e4c4';
-      ctx.beginPath();
-      ctx.arc(...p, 2, 0, 7);
-      ctx.fill();
+      poly(
+        [
+          iso(x, y, 3),
+          iso(x + 1, y, 3),
+          iso(x + 1, y + 1, 3),
+          iso(x, y + 1, 3),
+        ],
+        P.foreground + '08',
+        P.foreground,
+      );
     }
-    buildingIdentity(b, t, ghost);
-    ctx.globalAlpha = 1;
+    ctx.restore();
   }
   function draw(frame) {
     ({
@@ -659,9 +531,10 @@ export function createArtwork(ctx) {
       citizen,
       layer,
       draft,
+      preview,
     } = frame);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = '#111b1c';
+    ctx.fillStyle = P['background'];
     ctx.fillRect(0, 0, W, H);
     let bg = ctx.createRadialGradient(
       W * 0.55,
@@ -671,8 +544,8 @@ export function createArtwork(ctx) {
       H * 0.5,
       W * 0.65,
     );
-    bg.addColorStop(0, '#2c3933');
-    bg.addColorStop(1, '#101a1c');
+    bg.addColorStop(0, P['card']);
+    bg.addColorStop(1, P['background']);
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
     ctx.save();
@@ -682,7 +555,7 @@ export function createArtwork(ctx) {
       (a, b) => a.x + a.y - b.x - b.y,
     )) {
       let { x, y } = tile;
-      let r = 0;
+
       let noise = Math.abs(Math.sin(x * 128.4 + y * 33.7));
       let road = x % 4 === 0 || y % 4 === 0;
       let a = iso(x, y),
@@ -691,28 +564,34 @@ export function createArtwork(ctx) {
         d = iso(x, y + 1);
       poly(
         [a, b, c, d],
-        road ? '#24332f' : noise > 0.5 ? '#354139' : '#303d35',
-        grid ? '#5c6c4f' : '#3b473b',
+        road ? P['road'] : noise > 0.5 ? P['ground'] : P['ground-alt'],
+        grid ? P['muted'] : P['edge'],
       );
+      if (tile.exposure > 0) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(0.65, tile.exposure * 0.06);
+        poly([a, b, c, d], P.soot);
+        ctx.restore();
+      }
       if (road) {
-        line(iso(x + 0.2, y + 0.2), iso(x + 0.8, y + 0.8), '#60705a', 0.6);
+        line(iso(x + 0.2, y + 0.2), iso(x + 0.8, y + 0.8), P['edge'], 0.6);
         if (y % 4 === 0) {
-          line(iso(x, y + 0.36), iso(x + 1, y + 0.36), '#6e7460', 1);
-          line(iso(x, y + 0.64), iso(x + 1, y + 0.64), '#6e7460', 1);
+          line(iso(x, y + 0.36), iso(x + 1, y + 0.36), P['edge'], 1);
+          line(iso(x, y + 0.64), iso(x + 1, y + 0.64), P['edge'], 1);
           for (let j = 0; j < 4; j++)
             line(
               iso(x + j * 0.25, y + 0.25),
               iso(x + j * 0.25, y + 0.75),
-              '#435345',
+              P['steel'],
               1,
             );
         }
       }
       if (!terrain.has(key(x + 1, y)) && noise > 0.6)
         face(x + 0.4, y + 0.4, 0.06, 0.06, 0, 4, [
-          '#b7bb87',
-          '#8d8c58',
-          '#656f48',
+          P['concrete'],
+          P['concrete-shadow'],
+          P['steel'],
         ]);
     }
     // foundations, service pipes and buildings in depth order
@@ -732,24 +611,44 @@ export function createArtwork(ctx) {
       let valid = !buildings.has(key(x, y)) && terrain.has(key(x, y));
       poly(
         [iso(x, y), iso(x + 1, y), iso(x + 1, y + 1), iso(x, y + 1)],
-        valid ? '#d0e6ad22' : '#dd9a7833',
-        valid ? '#c5d7a0' : '#dd9a78',
+        valid ? P['foreground'] + '22' : P['danger'] + '33',
+        valid ? P['foreground'] : P['danger'],
       );
-      if (mode !== 'inspect')
-        building(
-          {
-            x,
-            y,
-            id: -1,
-            h: draft?.height ?? 48,
-            design: draft?.design,
-            type: mode,
-            on: true,
-            variant: draft?.seed ?? 0.5,
-          },
-          clock,
-          true,
-        );
+      const ghost = preview?.building ?? {
+        x,
+        y,
+        id: -1,
+        h: draft?.height ?? 48,
+        design: draft?.design,
+        modules: draft?.modules,
+        type: mode,
+        on: true,
+        variant: draft?.seed ?? 0.5,
+      };
+      if (preview) net.set(ghost, preview.service);
+      building(ghost, clock, true);
+      if (preview) {
+        net.delete(ghost);
+        const existing = links;
+        links = preview.links;
+        ctx.save();
+        ctx.setLineDash([3, 3]);
+        drawConnections(clock);
+        ctx.restore();
+        links = existing;
+      }
+      const label = iso(x + 0.5, y + 0.5, -23);
+      const message = !valid
+        ? 'OCCUPIED / UNREVEALED'
+        : serviceStatus(ghost, preview?.service) +
+          (preview?.service.output ? ` / ${preview.service.output} metal` : '');
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'center';
+      const width = ctx.measureText(message).width + 12;
+      ctx.fillStyle = P.ink;
+      ctx.fillRect(label[0] - width / 2, label[1] - 10, width, 15);
+      ctx.fillStyle = valid ? P.foreground : P.danger;
+      ctx.fillText(message, ...label);
     }
     ctx.restore();
     let vignette = ctx.createRadialGradient(
@@ -760,8 +659,8 @@ export function createArtwork(ctx) {
       H / 2,
       W * 0.68,
     );
-    vignette.addColorStop(0, '#07110f00');
-    vignette.addColorStop(1, '#07110f99');
+    vignette.addColorStop(0, P['ink'] + '00');
+    vignette.addColorStop(1, P['ink'] + '99');
     ctx.fillStyle = vignette;
     ctx.fillRect(0, 0, W, H);
   }

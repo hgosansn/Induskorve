@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import './palette.css';
 
 @custom-variant dark (&:is(.dark *));
 @theme inline {
@@ -10,27 +11,30 @@
   --color-popover: var(--card);
   --color-popover-foreground: var(--foreground);
   --color-primary: var(--primary);
-  --color-primary-foreground: #18201c;
-  --color-secondary: #314238;
+  --color-primary-foreground: var(--background);
+  --color-secondary: var(--steel);
   --color-secondary-foreground: var(--foreground);
-  --color-muted: #26372f;
-  --color-muted-foreground: #9bad9e;
-  --color-accent: #314238;
+  --color-muted: var(--surface);
+  --color-muted-foreground: var(--muted);
+  --color-accent: var(--steel);
   --color-accent-foreground: var(--foreground);
-  --color-destructive: #e49a81;
-  --color-border: #425047;
-  --color-input: #52634f;
+  --color-destructive: var(--danger);
+  --color-border: var(--edge);
+  --color-input: var(--edge);
   --color-ring: var(--primary);
-  --radius-sm: 2px;
-  --radius-md: 3px;
-  --radius-lg: 4px;
-  --radius-xl: 6px;
-}
-:root {
-  --background: #111b1c;
-  --foreground: #e5e5d9;
-  --card: #192622;
-  --primary: #c9d6ac;
+  --color-power: var(--power);
+  --color-materials: var(--materials);
+  --color-production: var(--production);
+  --color-black: var(--ink);
+  --color-white: var(--foreground);
+  --radius-*: initial;
+  --radius: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-full: 0px;
 }
 @layer base {
   * {
@@ -57,7 +61,7 @@
 }
 @layer components {
   .surface {
-    @apply border border-border bg-card/95 shadow-xl backdrop-blur-md;
+    @apply border border-border bg-card;
   }
   .eyebrow {
     @apply font-mono text-[10px] uppercase tracking-widest text-muted-foreground;
@@ -70,4 +74,67 @@
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Covers Radix portals, Sonner, native inputs, and explicit utility overrides. */
+*,
+*::before,
+*::after {
+  border-radius: 0 !important;
+}
+[data-sonner-toast] {
+  --normal-bg: var(--card);
+  --normal-text: var(--foreground);
+  --normal-border: var(--edge);
+  box-shadow: none !important;
+}
+input[type='checkbox'],
+input[type='range'] {
+  accent-color: var(--primary);
+}
+
+[data-slot='dialog-content'],
+button {
+  box-shadow: none;
+}
+input[type='checkbox'] {
+  appearance: none;
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+  border: 1px solid var(--muted);
+  background: var(--background);
+}
+input[type='checkbox']:checked {
+  background: var(--primary);
+  box-shadow: inset 0 0 0 3px var(--card);
+}
+input[type='range'] {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding-inline: 0;
+}
+input[type='range']::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--edge);
+}
+input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -5px;
+  background: var(--primary);
+  border-radius: 0;
+}
+input[type='range']::-moz-range-track {
+  height: 2px;
+  background: var(--edge);
+}
+input[type='range']::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--primary);
+  border: 0;
+  border-radius: 0;
 }

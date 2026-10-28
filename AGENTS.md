@@ -15,6 +15,16 @@ This section supersedes historical implementation/layout/run instructions below.
 - Generic controls come from shadcn/ui. Do not create a parallel design system.
 - Artwork remains isolated JS behind `artwork.d.ts`; other application code uses TypeScript. Do not claim full artwork type coverage or production readiness.
 
+## Current product changes (2026-10-28, supersedes historical art/service notes)
+
+- User asked to work directly on `main` after PR #1 was merged. Respect existing protections; do not create new PRs by default.
+- Minimal, brutalist direction: square UI, flat panels, charcoal/concrete and restrained role accents. `src/app/palette.css` is the only authored color source, consumed by Tailwind and Canvas. No scattered hex values or arbitrary color utilities.
+- Building entities carry optional validated functional modules; appearances retain shape, height, balcony and display. The old `stacks` appearance field is retained for save compatibility but exhaust geometry now follows machinery.
+- Role-specific machinery replaces random roof decorations. Retrofit existing structures in the inspector. Turbine capacity, nearby heat recovery, extra furnaces, scrubbers, loading bays and solar roofs have explicit domain effects.
+- Local production ticks every 10 seconds only while joined and visible. Metal fills warehouse stockpiles; full hubs stop output; dispatch clears stock and records shipped metal. Raw feedstock is unlimited, construction is free, and there is no offline catch-up or shared authority yet.
+- Ground tint is current local emissions exposure, not accumulated damage or a gameplay penalty. Heat is shown with copper pipes; existing power wires and airborne logistics indicators remain.
+- Keep workshop → forecast ghost → placement and an empty bottom UI. Forecast uses the same network rules as placement.
+
 ## Product identity and goal
 
 - Product name: **Induskorve** (user originally wrote “IndusKorve”; current repository and prototype use Induskorve).

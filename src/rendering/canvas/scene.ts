@@ -1,7 +1,7 @@
 import type { BuildingDraft } from '../../domain/city/model';
 import { createArtwork } from './artwork.js';
 import { advanceWalkers, syncWalkers } from './pedestrians';
-import { projectWorld, type RenderFrame } from './view-model';
+import { projectWorld, projectPlacement, type RenderFrame } from './view-model';
 import {
   tileKey,
   type NetworkLayer,
@@ -85,10 +85,7 @@ export function createCityScene(
         return (
           Math.abs(x - sx) < 22 * frame.zoom &&
           y < sy + 5 * frame.zoom &&
-          y >
-            sy -
-              (b.type === 'warehouse' ? 30 : b.h) * frame.zoom -
-              8 * frame.zoom
+          y > sy - b.h * frame.zoom - 8 * frame.zoom
         );
       });
   const resize = () => {
@@ -229,10 +226,30 @@ export function createCityScene(
   resize();
   home();
   update(initial);
+  let previewWorld: WorldSnapshot | undefined;
+  let previewDraft: BuildingDraft | undefined;
+  let previewCell = '';
   const render = (ms: number) => {
     if (disposed) return;
     const dt = Math.min(0.05, (ms - last) / 1000 || 0);
     last = ms;
+    const cell =
+      frame.hover && frame.mode !== 'inspect'
+        ? tileKey(frame.hover.x, frame.hover.y)
+        : '';
+    if (
+      cell !== previewCell ||
+      previewWorld !== source.world ||
+      previewDraft !== source.draft
+    ) {
+      frame.preview =
+        cell && frame.hover && source.draft
+          ? projectPlacement(source.world, source.draft, frame.hover)
+          : undefined;
+      previewCell = cell;
+      previewWorld = source.world;
+      previewDraft = source.draft;
+    }
     if (!reduceMotion.matches) {
       frame.clock = ms / 1000;
       advanceWalkers(frame.walkers, frame, dt);

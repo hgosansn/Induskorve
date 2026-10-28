@@ -15,13 +15,13 @@ The domain imports only Zod. It has no React, Canvas, storage, networking or sty
 
 | Record                     | Owns                                                                     | Excludes                                     |
 | -------------------------- | ------------------------------------------------------------------------ | -------------------------------------------- |
-| Building                   | ID, kind, grid position, operating switch, creator attribution           | Height, palette, images, draw functions      |
+| Building                   | ID, kind, grid position, operating switch, modules, creator attribution  | Height, palette, images, draw functions      |
 | BuildingAppearance         | Building reference, geometry height, deterministic seed, local billboard | Services and production rules                |
 | Citizen                    | Local identity and name                                                  | Authentication, Canvas motion, online status |
 | ServiceState / NetworkLink | Derived allocation, demand, capacity, activity                           | Pixels, colors, animation                    |
 | RenderBuilding / Walker    | Projected geometry and visual pedestrian motion                          | Persistent authority                         |
 
-The founding seed and artwork are preserved. A view projection joins entity/appearance records and maps service IDs to render references. Scene and projection are TypeScript. The existing mathematical artwork remains JavaScript behind a typed declaration; converting that isolated module to checked TypeScript remains a hardening task.
+The founding seed and saved positions are preserved; role-specific machinery replaces random building decoration. A view projection joins entity/appearance records and maps service IDs to render references. Scene and projection are TypeScript. The existing mathematical artwork remains JavaScript behind a typed declaration; converting that isolated module to checked TypeScript remains a hardening task.
 
 ## Rendering lifecycle
 
@@ -40,3 +40,11 @@ Local save versions are separate from future network protocol revisions. Never u
 Generic UI comes from the official shadcn registry under `components/ui`; application compositions are city-specific. Do not create a parallel design system, focus trap or animation framework. Add dependencies for actual use cases. No router is needed for this single-page canvas.
 
 CI checks formatting, lint, frontend/server types, domain/persistence/transport invariants, browser interactions and production builds. Live multiplayer, scale, authenticated permissions and GIF playback require separate acceptance checks.
+
+## Machinery, production and palette
+
+`catalog.ts` owns module effects and building statistics. `networks.ts` allocates powered logistics before foundries, preserves deterministic ID ordering, and derives nearby heat recovery. `production.ts` advances one bounded integer stockpile step. The application timer runs only in a visible, joined local session, with no offline catch-up. Dispatch and module reconfiguration are validated commands; removing capacity cannot discard stored material. These rules are a local industrial pilot, not an authoritative shared economy.
+
+The renderer joins stockpiles and module IDs to machinery. Ground exposure is derived from operational emissions within two tiles; scrubbers/outages alter it. No environmental simulation state is hidden in pixels. Placement projections use the same network rules as committed buildings and are recomputed when tile, draft or world changes, not every frame.
+
+All authored colors live in `app/palette.css`. Tailwind aliases them and Canvas reads the same computed properties through `rendering/palette.ts`. Do not add renderer hex values or arbitrary Tailwind colors. Border radii are zero across controls, portals and native inputs. Shadows are reserved for meaningful scene depth, not floating UI panels.

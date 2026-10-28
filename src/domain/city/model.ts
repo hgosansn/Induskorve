@@ -12,6 +12,27 @@ export const citizenSchema = z.object({
   name: z.string().trim().min(1).max(24),
 });
 export type Citizen = z.infer<typeof citizenSchema>;
+export const moduleSchema = z.enum([
+  'turbine',
+  'heat-exchanger',
+  'furnace',
+  'scrubber',
+  'loading-bay',
+  'solar-roof',
+]);
+export type BuildingModule = z.infer<typeof moduleSchema>;
+export const moduleKinds: Record<BuildingModule, BuildingKind> = {
+  turbine: 'power',
+  'heat-exchanger': 'power',
+  furnace: 'factory',
+  scrubber: 'factory',
+  'loading-bay': 'warehouse',
+  'solar-roof': 'warehouse',
+};
+const modulesSchema = z
+  .array(moduleSchema)
+  .max(2)
+  .refine((v) => new Set(v).size === v.length, 'Duplicate module');
 export const buildingSchema = positionSchema.extend({
   id: z
     .number()
@@ -20,6 +41,7 @@ export const buildingSchema = positionSchema.extend({
     .max(Number.MAX_SAFE_INTEGER - 1),
   type: buildingKindSchema,
   on: z.boolean(),
+  modules: modulesSchema.optional(),
   creatorId: z.string().max(128).optional(),
   creator: z.string().max(24).optional(),
 });
@@ -38,12 +60,18 @@ export const designSchema = z.object({
   display: z.enum(['animated', 'none']),
 });
 export type BuildingDesign = z.infer<typeof designSchema>;
-export const draftSchema = z.object({
-  kind: buildingKindSchema,
-  height: z.number().min(24).max(85),
-  seed: z.number().min(0).max(1),
-  design: designSchema,
-});
+export const draftSchema = z
+  .object({
+    kind: buildingKindSchema,
+    modules: modulesSchema.optional(),
+    height: z.number().min(24).max(85),
+    seed: z.number().min(0).max(1),
+    design: designSchema,
+  })
+  .refine(
+    (d) => d.modules?.every((m) => moduleKinds[m] === d.kind) ?? true,
+    'Module does not fit this building',
+  );
 export type BuildingDraft = z.infer<typeof draftSchema>;
 export const defaultDraft: BuildingDraft = {
   kind: 'factory',
@@ -53,7 +81,7 @@ export const defaultDraft: BuildingDraft = {
     shape: 'stepped',
     stacks: true,
     balcony: true,
-    display: 'animated',
+    display: 'none',
   },
 };
 // Presentation metadata is deliberately absent from Building and simulation rules.
@@ -71,6 +99,29 @@ export const worldSchema = z
     buildings: z.array(buildingSchema).max(2500),
     appearances: z.array(appearanceSchema).max(2500),
     citizens: z.array(citizenSchema).max(100),
+    economy: z
+      .object({
+        shippedMetal: z
+          .number()
+          .int()
+          .nonnegative()
+          .max(Number.MAX_SAFE_INTEGER)
+          .optional(),
+        cycle: z
+          .number()
+          .int()
+          .nonnegative()
+          .max(Number.MAX_SAFE_INTEGER - 1),
+        stockpiles: z
+          .array(
+            z.object({
+              buildingId: buildingSchema.shape.id,
+              metal: z.number().int().min(0).max(400),
+            }),
+          )
+          .max(2500),
+      })
+      .optional(),
   })
   .superRefine((world, ctx) => {
     const ids = new Set(world.buildings.map((b) => b.id));
@@ -82,7 +133,19 @@ export const worldSchema = z
       appearanceIds.size !== world.appearances.length ||
       appearanceIds.size !== ids.size ||
       world.appearances.some((a) => !ids.has(a.buildingId)) ||
-      new Set(world.citizens.map((c) => c.id)).size !== world.citizens.length
+      new Set(world.citizens.map((c) => c.id)).size !== world.citizens.length ||
+      world.buildings.some((b) =>
+        b.modules?.some((m) => moduleKinds[m] !== b.type),
+      ) ||
+      (world.economy &&
+        (new Set(world.economy.stockpiles.map((s) => s.buildingId)).size !==
+          world.economy.stockpiles.length ||
+          world.economy.stockpiles.some(
+            (s) =>
+              !world.buildings.some(
+                (b) => b.id === s.buildingId && b.type === 'warehouse',
+              ),
+          )))
     ) {
       ctx.addIssue({
         code: 'custom',
