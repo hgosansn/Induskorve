@@ -29,12 +29,14 @@ This section supersedes historical implementation/layout/run instructions below.
 
 ## Building assembly rules (2026-10-28)
 
-- The user explicitly considers the design unfinished and wants experimentation. **City → Design atlas → WFC lab** is a separate massing experiment with deterministic stack-height WFC, per-floor core connectivity, sections and structure view. See `docs/wfc-experiment.md`. These previews do not alter saved city assets or imply a final architectural direction. Keep solver, kit and artwork separate; this is not full 3D WFC or structural engineering.
+- The user approved the modular WFC approach for the actual city. All halls now use `generation/city-massing.ts` and the shared piece renderer, including existing saved buildings, workshop previews and placement ghosts. The standalone WFC lab remains an unconstrained study. See `docs/wfc-experiment.md` for city-specific support constraints.
+- City kit version 1 derives from existing shape, height, type and appearance seed. Keep these recipes deterministic. Workshop and Atlas expose a repeatable layout seed. Modules/stock do not reshuffle the base architecture; no save migration or simulation-capacity change was introduced.
+- Roof mounts sit on reserved, flat WFC pads. The validator checks actual stack contact area, not just the hall envelope. The front terrace and its short ladder lead to the internal core. Facades use cached raster layers around the animated right-side display, and offscreen buildings are culled before cache creation.
 
 - Read `docs/building-assemblies.md` before adding geometry. Process → floorplan → mounting bays and clearances → compatible service ports → artwork.
 - `src/rendering/assembly/mounts.ts` defines bays before equipment is fitted. `compose.ts` snaps parts into them. `model.ts` validates support contact, solid intersections, access lanes and pipe routing. All geometry uses one 12-unit local kit; Canvas conversion is confined to rendering.
 - Keep heavy equipment on supported ground bays. Reserve roofs for the declared control, daylight, access, solar and grid equipment. Optional modules may not overlap a rooflight or block an access path.
-- Hall facades follow the user-supplied futuristic-city reference: floor bands, recessed glazing, panels and exposed structure. `assembly/facade.ts` derives stable layouts from shape/height/seed; `canvas/hall.ts` renders them. Keep all relief inside the conservative hall envelope and preserve roof mounts. Shape now changes hall setbacks as well as the control room.
+- `generation/wfc.ts` solves height compatibility and floor connectivity. `city-massing.ts` adds industrial pads and a full process floor; `wfc-kit.ts` compiles exposed bays; `draw-wfc.ts` paints the shared floor/window/frame kit. `canvas/modular-hall.ts` fits it to the hall envelope. The previous `facade.ts` / `hall.ts` implementation was removed.
 - Layers are semantic inspection groups, never a drawing order. Keep external wire/heat endpoints and facade displays attached to their actual assembly surfaces.
 - Existing tests exercise 360 shape/height/module/balcony combinations and intentional invalid assemblies. Envelope validation is not structural engineering, general mesh collision or city-wide route avoidance.
 

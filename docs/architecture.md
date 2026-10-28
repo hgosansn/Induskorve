@@ -25,13 +25,13 @@ The founding seed and saved positions are preserved; role-specific machinery rep
 
 ## Rendering lifecycle
 
-The Atlas also contains an isolated [WFC building experiment](wfc-experiment.md). `rendering/generation` separates a pure stack-height solver, semantic bay compilation and Canvas drawing. It does not participate in city commands or persistence; generated layouts remain exploratory previews.
+The city uses the [modular WFC kit](wfc-experiment.md). `rendering/generation` separates the height solver, industrial constraints, semantic bay compilation and shared artwork. City, workshop and ghost derive the same recipe from existing appearance data. The Atlas retains the original unconstrained lab alongside actual city assemblies.
 
 Zustand commits immutable world snapshots after commands. Canvas subscribes directly; React does not receive camera or walker frames. Service allocation runs on world changes, not on every frame. Inspection memoizes allocation for stable building arrays.
 
 The scene owns camera, hover, render caches and ambient motion. Pointer capture supports dragging outside the canvas; right-click/Escape cancel placement. AbortController removes listeners; ResizeObserver, animation requests and caches are released on unmount, including StrictMode remounts. Hidden tabs stop rendering. Reduced-motion preferences freeze visual world animation and interface transitions.
 
-`rendering/assembly` defines independent mounting bays, parts, solid envelopes, access clearances and compatible service ports. Its pure composition and validation are separate from drawing. `geometry.ts` supplies isometric primitives, `building-layout.ts` reads the assembly ports, `buildings.ts` draws the composed parts, and `terrain-art.ts` draws the revealed ground. See [building assembly contract](building-assemblies.md). `artwork.js` orchestrates these with the remaining scene elements. The optional `BuildingStudy` render configuration separates or isolates assembly layers without entering the domain or save model. `BuildingPreview` is shared by the workshop and Design atlas; both render the same geometry as placed buildings. Atlas state is local React state with no command or persistence access.
+`rendering/assembly` defines independent mounting bays, parts, solid envelopes, access clearances and compatible service ports. Its pure composition and validation are separate from drawing. `geometry.ts` supplies isometric primitives, `building-layout.ts` reads the assembly ports, `buildings.ts` draws the composed parts and `modular-hall.ts` draws the generated hall, and `terrain-art.ts` draws the revealed ground. See [building assembly contract](building-assemblies.md). `artwork.js` orchestrates these with the remaining scene elements. The optional `BuildingStudy` render configuration separates or isolates assembly layers without entering the domain or save model. `BuildingPreview` is shared by the workshop and Design atlas; both render the same geometry as placed buildings. Atlas state is local React state with no command or persistence access.
 
 ## Save integrity
 

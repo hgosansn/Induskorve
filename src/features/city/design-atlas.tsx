@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Input } from '@/components/ui/input';
 import { BuildingPreview } from './building-preview';
 import { WfcLab } from './wfc-lab';
 import {
@@ -59,6 +60,7 @@ const layerDescriptions: Record<AssemblyLayer, string> = {
 };
 export function DesignAtlas() {
   const [mode, setMode] = useState('assembly');
+  const [seed, setSeed] = useState(500000);
   const [kind, setKind] = useState<BuildingKind>('power');
   const [modules, setModules] = useState<BuildingModule[]>([
     'turbine',
@@ -74,6 +76,7 @@ export function DesignAtlas() {
   const draft = {
     ...defaultDraft,
     kind,
+    seed: seed / 1000000,
     height: 78,
     modules,
     design: {
@@ -121,7 +124,7 @@ export function DesignAtlas() {
           <WfcLab />
         ) : (
           <div className="grid min-h-0 gap-6 overflow-y-auto lg:grid-cols-[1.5fr_1fr]">
-            <div className="min-w-0">
+            <div className="min-w-0 self-start lg:sticky lg:top-0">
               <BuildingPreview
                 draft={draft}
                 active={active}
@@ -206,11 +209,30 @@ export function DesignAtlas() {
                   <ToggleGroupItem value="tower">Tower</ToggleGroupItem>
                 </ToggleGroup>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Floor setbacks and exposed frames shape the hall; machinery
-                  keeps its reserved bays.
+                  Connected modular floors form the hall. Machinery sits on
+                  supported pads.
                 </p>
               </fieldset>
               <div className="space-y-2 border-t border-border pt-4">
+                <Label htmlFor="atlas-seed">Layout seed</Label>
+                <Input
+                  id="atlas-seed"
+                  type="number"
+                  min={0}
+                  max={1000000}
+                  value={seed}
+                  onChange={(e) =>
+                    setSeed(
+                      Math.max(
+                        0,
+                        Math.min(
+                          1000000,
+                          Math.trunc(Number(e.target.value) || 0),
+                        ),
+                      ),
+                    )
+                  }
+                />
                 <Label htmlFor="atlas-part">Why is this part here?</Label>
                 <select
                   id="atlas-part"

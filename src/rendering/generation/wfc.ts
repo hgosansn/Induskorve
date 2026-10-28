@@ -53,27 +53,44 @@ export function neighbors(index: number, size = GRID_SIZE): number[] {
 export const compatibleHeights = (a: number, b: number, style: WfcStyle) =>
   Math.abs(a - b) <= WFC_STYLES[style].step;
 
+export interface WfcConstraints {
+  height: number;
+  step: number;
+  core: [number, number];
+  target: number;
+  minimum: number;
+  pins: Record<number, number>;
+}
+
 // Simple tiled WFC: stack heights are tiles; edges encode allowed height transitions.
 // A global reachability constraint additionally keeps every occupied floor joined to the stair core.
 export function generateWfc(
   seed: number,
   style: WfcStyle,
   budget = 4000,
+  constraints?: WfcConstraints,
 ): WfcResult {
-  const spec = WFC_STYLES[style],
+  const spec = constraints ?? WFC_STYLES[style],
     size = GRID_SIZE,
     core = spec.core[0] + spec.core[1] * size,
     entrance = 2 + 4 * size;
   const rng = randomStream(seed),
     adj = Array.from({ length: size * size }, (_, i) => neighbors(i, size));
   const initial = Array.from({ length: size * size }, () =>
-    Array.from({ length: spec.height + 1 }, (_, i) => i),
+    Array.from({ length: spec.height + 1 }, (_, i) => i).filter(
+      (h) => h >= (constraints?.minimum ?? 0),
+    ),
   );
   initial[core] = [spec.height];
-  initial[entrance] = [1];
-  initial[20] = [0];
-  initial[24] = [0];
-  if (style === 'courtyard') initial[12] = [0];
+  if (constraints) {
+    for (const [index, height] of Object.entries(constraints.pins))
+      initial[Number(index)] = [height];
+  } else {
+    initial[entrance] = [1];
+    initial[20] = [0];
+    initial[24] = [0];
+    if (style === 'courtyard') initial[12] = [0];
+  }
   let observations = 0,
     backtracks = 0,
     exhausted = false;
@@ -96,7 +113,7 @@ export function generateWfc(
       for (let i = 0; i < domains.length; i++) {
         for (const j of adj[i]!) {
           const next = domains[i]!.filter((a) =>
-            domains[j]!.some((b) => compatibleHeights(a, b, style)),
+            domains[j]!.some((b) => Math.abs(a - b) <= spec.step),
           );
           if (!next.length) return false;
           if (next.length !== domains[i]!.length) {
@@ -189,25 +206,36 @@ export function generateWfc(
     },
   };
 }
-export function validateWfc(b: WfcBuilding): string[] {
+export function validateWfc(
+  b: WfcBuilding,
+  constraints?: WfcConstraints,
+): string[] {
   const errors: string[] = [],
-    spec = WFC_STYLES[b.style];
+    spec = constraints ?? WFC_STYLES[b.style];
   if (b.heights.length !== b.size * b.size) return ['Incorrect grid size'];
   if (b.heights[b.core] !== spec.height) errors.push('Missing stair core');
   if (b.heights[b.entrance] !== 1)
     errors.push('Entrance is not at ground level');
-  if (b.style === 'courtyard' && b.heights[12] !== 0)
+  if (!constraints && b.style === 'courtyard' && b.heights[12] !== 0)
     errors.push('Courtyard obstructed');
   b.heights.forEach((height, i) => {
-    if (!Number.isInteger(height) || height < 0 || height > spec.height)
+    if (
+      !Number.isInteger(height) ||
+      height < (constraints?.minimum ?? 0) ||
+      height > spec.height
+    )
       errors.push('Invalid height');
     if (
       neighbors(i, b.size).some(
-        (j) => !compatibleHeights(height, b.heights[j]!, b.style),
+        (j) => Math.abs(height - b.heights[j]!) > spec.step,
       )
     )
       errors.push('Incompatible neighboring stacks');
   });
+  if (constraints)
+    for (const [i, h] of Object.entries(constraints.pins))
+      if (b.heights[Number(i)] !== h)
+        errors.push(`Unsupported reserved pad ${i}`);
   for (let level = 1; level <= spec.height; level++) {
     const reached = new Set([b.core]),
       queue = [b.core];

@@ -78,7 +78,9 @@ describe('building assembly contracts', () => {
     expect(validateAssembly(a)).toContain('control: unsupported top mount');
     p.kind = 'cooler';
     expect(validateAssembly(a)).toContain('control: incompatible mount');
-    p.volume.y = 4.3;
+    const access = a.clearances.find((c) => c.id === 'roof-access')!.volume;
+    p.volume.y = access.y;
+    p.volume.z = access.z;
     expect(validateAssembly(a)).toContain('control blocks roof-access');
   });
   it('rejects disconnected and intersecting process ducts', () => {

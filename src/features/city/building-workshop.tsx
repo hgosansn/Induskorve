@@ -58,8 +58,8 @@ export function BuildingWorkshop({ store }: { store: CityStore }) {
         <DialogHeader>
           <DialogTitle>Design your building</DialogTitle>
           <DialogDescription>
-            Compose its machinery, then choose its place in the industrial
-            network.
+            Grow a modular building, fit its machinery, then choose its place in
+            the industrial network.
           </DialogDescription>
         </DialogHeader>
         <div className="grid min-h-0 gap-6 overflow-y-auto sm:grid-cols-2">
@@ -115,8 +115,8 @@ export function BuildingWorkshop({ store }: { store: CityStore }) {
                 ))}
               </ToggleGroup>
               <p className="mt-2 text-xs text-muted-foreground">
-                Shapes the hall setbacks and control room; equipment stays in
-                its mounted bays.
+                Connected floor bays form the hall and terraces. Equipment has
+                reserved, supported pads.
               </p>
             </fieldset>
             <div>
@@ -196,13 +196,45 @@ export function BuildingWorkshop({ store }: { store: CityStore }) {
                 <ToggleGroupItem value="none">No display</ToggleGroupItem>
               </ToggleGroup>
             </fieldset>
-            <Button
-              variant="outline"
-              disabled={draft.design.display === 'none'}
-              onClick={() => setDraft((d) => ({ ...d, seed: Math.random() }))}
-            >
-              Vary display artwork
-            </Button>
+            <div className="space-y-2">
+              <Label htmlFor="layout-seed">Layout seed</Label>
+              <Input
+                id="layout-seed"
+                type="number"
+                min={0}
+                max={1000000}
+                value={Math.round(draft.seed * 1000000)}
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    seed:
+                      Math.max(
+                        0,
+                        Math.min(
+                          1000000,
+                          Math.trunc(Number(e.target.value) || 0),
+                        ),
+                      ) / 1000000,
+                  }))
+                }
+              />
+              <Button
+                variant="outline"
+                onClick={() =>
+                  setDraft((d) => ({
+                    ...d,
+                    seed:
+                      ((Math.round(d.seed * 1000000) + 1) % 1000001) / 1000000,
+                  }))
+                }
+              >
+                Generate another layout
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Keep a seed to rebuild the same layout. It also sets the
+                facade's lighting and display pattern.
+              </p>
+            </div>
           </div>
         </div>
         <div className="flex justify-end gap-2">

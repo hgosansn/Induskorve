@@ -1,5 +1,5 @@
-import { createHallRenderer } from './hall';
-import type { FacadeSurface } from '../assembly/facade';
+import { createModularHallRenderer } from './modular-hall';
+import type { FacadeSurface } from '../assembly/model';
 import type { Palette } from '../palette';
 import { createGeometry, iso, type Material } from './geometry';
 import { assemblyOffset, type BuildingStudy } from './building-layout';
@@ -19,7 +19,7 @@ export function createBuildingRenderer(
   p: Palette,
 ) {
   const g = createGeometry(ctx, p);
-  const drawHall = createHallRenderer(ctx, p);
+  const drawHall = createModularHallRenderer(ctx, p);
   const ordered = new WeakMap<RenderBuilding, AssemblyPart[]>();
   return (
     b: RenderBuilding,

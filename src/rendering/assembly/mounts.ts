@@ -1,3 +1,4 @@
+import { cityMassing, levelHeight } from '../generation/city-massing';
 import {
   volume,
   type AssemblyInput,
@@ -15,8 +16,10 @@ export function assemblyDimensions(b: AssemblyInput) {
     hallW: b.type === 'warehouse' ? 10.4 : b.type === 'factory' ? 6.3 : 6,
     hallD: b.type === 'warehouse' ? 6.7 : 7.2,
     roof: floor + hallH,
-    gridX: b.type === 'warehouse' ? 3.6 : 4.7,
-    gridY: b.type === 'factory' ? 5.5 : 1.1,
+    gridX:
+      0.9 +
+      (b.type === 'warehouse' ? 10.4 : b.type === 'factory' ? 6.3 : 6) * 0.6,
+    gridY: 0.9,
   };
 }
 
@@ -25,6 +28,11 @@ export function assemblyDimensions(b: AssemblyInput) {
 export function buildingMounts(b: AssemblyInput): Mount[] {
   const { floor, hallH, hallW, hallD, roof, gridX, gridY } =
     assemblyDimensions(b);
+  const hall = volume(0.8, 0.8, floor, hallW, hallD, hallH);
+  const massing = cityMassing(b, hall);
+  const terrace = floor + massing.podium;
+  const equipmentLevel =
+    floor + levelHeight(massing, Math.max(1, massing.levels - 2));
   const mounts: Mount[] = [];
   const bay = (
     id: string,
@@ -34,31 +42,19 @@ export function buildingMounts(b: AssemblyInput): Mount[] {
     face: Mount['face'] = 'top',
   ) => mounts.push({ id: `${id}-mount`, accepts, volume: v, support, face });
   bay('hall', ['hall'], volume(0.8, 0.8, floor, hallW, hallD, hallH));
-  bay(
-    'control',
-    ['control'],
-    volume(
-      1.1,
-      b.type === 'factory' ? 5.5 : 1.1,
-      roof,
-      2.1,
-      b.type === 'factory' ? 1.4 : 2,
-      4,
-    ),
-    'hall',
-  );
+  bay('control', ['control'], volume(1.1, 1.0, roof, 2.1, 1.8, 4), 'hall');
   bay('grid', ['grid'], volume(gridX, gridY, roof, 1.7, 1.4, 2.7), 'hall');
   bay('terminal', ['terminal'], volume(10.7, 10.7, floor, 0.6, 0.6, 1.3));
   bay(
     'catwalk',
     ['catwalk'],
-    volume(0.8, b.type === 'warehouse' ? 6.7 : 7.2, roof, hallW, 0.8, 1),
+    volume(0.8, 0.8 + hallD - 0.3, terrace, hallW, 0.3, 0.75),
     'hall',
   );
   bay(
     'ladder',
     ['ladder'],
-    volume(0.85, 0.8 + hallD, floor, 0.55, 0.09, hallH),
+    volume(0.85, 0.8 + hallD, floor, 0.55, 0.09, massing.podium),
     'hall',
     'front',
   );
@@ -74,7 +70,14 @@ export function buildingMounts(b: AssemblyInput): Mount[] {
     bay(
       'daylight',
       ['skylights'],
-      volume(0.8, 0.8, roof, 6.3, 3.6, 1.2),
+      volume(
+        0.9,
+        0.9 + hallD * 0.4,
+        equipmentLevel,
+        hallW * 0.4 - 0.2,
+        hallD * 0.2 - 0.2,
+        1.2,
+      ),
       'hall',
     );
     bay(
@@ -84,7 +87,19 @@ export function buildingMounts(b: AssemblyInput): Mount[] {
     );
     bay('second-furnace', ['furnace'], volume(8.1, 5.5, floor, 2.8, 2.5, 3.5));
   } else {
-    bay('solar', ['solar'], volume(5.6, 1.1, roof, 5.2, 3, 1), 'hall');
+    bay(
+      'solar',
+      ['solar'],
+      volume(
+        0.9 + hallW * 0.6,
+        0.9 + hallD * 0.4,
+        equipmentLevel,
+        hallW * 0.4 - 0.2,
+        hallD * 0.4 - 0.2,
+        1,
+      ),
+      'hall',
+    );
     bay('gantry', ['gantry'], volume(1, 8.8, floor, 9.7, 1.8, hallH + 1));
     for (let i = 0; i < 8; i++)
       bay(

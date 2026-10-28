@@ -29,6 +29,13 @@ export interface AssemblyInput {
   design?: BuildingDesign;
   stock?: number;
 }
+export interface FacadeSurface {
+  x: number;
+  y: number;
+  z: number;
+  width: number;
+  height: number;
+}
 export interface Volume {
   x: number;
   y: number;
@@ -144,14 +151,33 @@ export function validateAssembly(a: BuildingAssembly): string[] {
     occupied.add(m.id);
     if (!m.accepts.includes(p.kind)) errors.push(`${p.id}: incompatible mount`);
     if (!contains(m.volume, p.volume)) errors.push(`${p.id}: exceeds mount`);
-    const support = parts.get(m.support)?.volume;
-    if (!support) {
+    const supportingPart = parts.get(m.support);
+    const support = supportingPart?.volume;
+    if (!support || !supportingPart) {
       errors.push(`${p.id}: missing support`);
       continue;
     }
     if (m.face === 'top') {
+      // A mounted pad may span multiple adjoining WFC stacks. Sum the contact
+      // area of their non-overlapping top faces instead of trusting the envelope.
+      const contact = supportingPart.solids.reduce((area, s) => {
+        if (Math.abs(p.volume.z - s.z - s.h) > EPS) return area;
+        return (
+          area +
+          Math.max(
+            0,
+            Math.min(p.volume.x + p.volume.w, s.x + s.w) -
+              Math.max(p.volume.x, s.x),
+          ) *
+            Math.max(
+              0,
+              Math.min(p.volume.y + p.volume.d, s.y + s.d) -
+                Math.max(p.volume.y, s.y),
+            )
+        );
+      }, 0);
       if (
-        Math.abs(p.volume.z - (support.z + support.h)) > EPS ||
+        Math.abs(contact - p.volume.w * p.volume.d) > EPS ||
         p.volume.x < support.x - EPS ||
         p.volume.x + p.volume.w > support.x + support.w + EPS ||
         p.volume.y < support.y - EPS ||

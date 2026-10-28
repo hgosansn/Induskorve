@@ -1,3 +1,4 @@
+import { cityMassing, massingSolids } from '../generation/city-massing';
 import { assemblyDimensions, buildingMounts } from './mounts';
 import { hasModule } from '../../domain/city/catalog';
 import {
@@ -73,11 +74,13 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
         : 'Shelters inventory behind three loading doors. The apron gives each door an approach.',
     'shell',
   );
+  const massing = cityMassing(b, hall.volume);
+  hall.solids = massingSolids(massing, hall.volume);
   add(
     'control',
     'control',
     'Control room',
-    'Houses operators and controls; its door faces the reserved roof access lane.',
+    'Houses operators on the supported rear service deck, reached through the internal stair core.',
     'services',
   );
   const grid = add(
@@ -275,11 +278,11 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
       });
     }
   }
-  const accessY = b.type === 'factory' ? 4.4 : 4.3;
+  const accessY = hall.volume.y + hall.volume.d * 0.8 + 0.05;
   a.clearances.push({
     id: 'roof-access',
-    purpose: 'Continuous roof maintenance lane',
-    volume: volume(1, accessY, roof, hallW - 0.4, 0.9, 2),
+    purpose: 'Front terrace approach from ladder to internal stair core',
+    volume: volume(1, accessY, floor + massing.podium, hallW - 0.4, 0.55, 2),
   });
   a.clearances.push({
     id: 'door-approach',
@@ -299,7 +302,7 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
     'ladder',
     'ladder',
     'Roof access ladder',
-    'Provides a continuous route from the apron to the roof maintenance lane.',
+    'Connects the apron to the front terrace. The internal stair core connects the upper floors.',
     'services',
   );
   return a;

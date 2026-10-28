@@ -298,6 +298,17 @@ export function createArtwork(ctx) {
     ctx.restore();
   }
   function building(b, t, ghost = false) {
+    // Avoid building raster caches for structures outside the viewport.
+    const origin = iso(b.x + 0.5, b.y + 0.5);
+    const sx = W * 0.53 + panX + origin[0] * zoom;
+    const sy = H * 0.53 + panY + origin[1] * zoom;
+    if (
+      sx < -45 * zoom ||
+      sx > W + 45 * zoom ||
+      sy + 30 * zoom < 0 ||
+      sy - (b.h + 50) * zoom > H
+    )
+      return;
     const on = net.get(b)?.active ?? (ghost || b.on);
     drawBuilding(b, on, t, {
       zoom,

@@ -18,6 +18,7 @@ async function join(page: import('@playwright/test').Page) {
 test('workshop design persists through ghost placement and reload', async ({
   page,
 }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/');
@@ -43,6 +44,15 @@ test('workshop design persists through ghost placement and reload', async ({
   await page.getByRole('radio', { name: 'No display', exact: true }).click();
   await page.getByLabel('Service balcony').uncheck();
   await page.getByRole('checkbox', { name: 'Loading bay' }).check();
+  const preview = page.getByLabel('Configured building preview');
+  await page.getByLabel('Layout seed', { exact: true }).fill('734123');
+  const layout = await canvasHash(preview);
+  await page
+    .getByRole('button', { name: 'Generate another layout', exact: true })
+    .click();
+  await expect.poll(() => canvasHash(preview)).not.toBe(layout);
+  await page.getByLabel('Layout seed', { exact: true }).fill('734123');
+  await expect.poll(() => canvasHash(preview)).toBe(layout);
   expect(
     await page
       .getByRole('dialog')
@@ -81,6 +91,7 @@ test('workshop design persists through ghost placement and reload', async ({
     display: 'none',
   });
   expect(save.appearances[1].height).toBe(48);
+  expect(save.appearances[1].seed).toBe(0.734123);
   expect(errors).toEqual([]);
 });
 test('cancel is non-mutating and bottom stays clear on mobile', async ({
@@ -215,6 +226,7 @@ test('asset atlas renders each family and module without editing the city', asyn
   const saved = await page.evaluate(() =>
     localStorage.getItem('induskorve:city:v3'),
   );
+  await canvasHash(page.locator('main > canvas'));
   await page.screenshot({ path: 'test-results/nocturne-district.png' });
   await page.getByRole('button', { name: 'City', exact: true }).click();
   await page.getByRole('button', { name: 'Design atlas', exact: true }).click();
@@ -398,6 +410,40 @@ test('WFC lab varies reproducibly, exposes floor sections and preserves the city
   await atlas.getByLabel('Generation seed').fill('73');
   await expect(atlas.getByRole('status')).toContainText('Solved');
   await page.screenshot({ path: 'test-results/wfc-mobile.png' });
+  expect(
+    await page.evaluate(() => localStorage.getItem('induskorve:city:v3')),
+  ).toBe(saved);
+  expect(errors).toEqual([]);
+});
+
+test('modular city renders at district and close zoom with no storage rewrite', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/');
+  const canvas = page.locator('main > canvas');
+  await canvasHash(canvas);
+  const saved = await page.evaluate(() =>
+    localStorage.getItem('induskorve:city:v3'),
+  );
+  const colors = await canvas.evaluate((el: HTMLCanvasElement) => {
+    const data = el
+      .getContext('2d')!
+      .getImageData(0, 0, el.width, el.height).data;
+    const unique = new Set<number>();
+    for (let i = 0; i < data.length; i += 128)
+      unique.add((data[i]! << 16) | (data[i + 1]! << 8) | data[i + 2]!);
+    return unique.size;
+  });
+  expect(colors).toBeGreaterThan(100);
+  await page.screenshot({ path: 'test-results/modular-city.png' });
+  await page.mouse.move(760, 530);
+  await page.mouse.wheel(0, -650);
+  await canvasHash(canvas);
+  await page.screenshot({ path: 'test-results/modular-city-close.png' });
   expect(
     await page.evaluate(() => localStorage.getItem('induskorve:city:v3')),
   ).toBe(saved);

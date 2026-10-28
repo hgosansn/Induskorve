@@ -26,19 +26,21 @@ One tile contains a **12 × 12 local-unit kit**. Local z uses the same authored 
 | Foundry   | Primary melting furnace enclosed by the hall | Extraction stack or scrubber; optional second furnace bay              | Rooflights in their own strip, controls and electrical rack | Facade ladder, roof lane, furnace approach                     |
 | Warehouse | Sheltered stock and loading doors            | Actual inventory stacks; two-legged handling gantry                    | Controls, electrical rack, optional supported solar array   | Clear door approach, roof lane; free gantry travel above stock |
 
-The scrubber replaces the extraction bypass in the same bay. It does not appear as an unrelated cylinder. Extra turbines and furnaces are ground-mounted enclosed units. Solar panels sit on support rails. The balcony option is a roof service deck with a guardrail; the ladder reaches the roof whether or not the deck is fitted.
+The scrubber replaces the extraction bypass in the same bay. It does not appear as an unrelated cylinder. Extra turbines and furnaces are ground-mounted enclosed units. Solar panels sit on support rails. The balcony option is a front terrace deck with a guardrail; the ladder reaches that terrace whether or not the deck is fitted. The internal core connects the upper floors.
 
 Functional references: the [EIA explanation of turbine generators](https://www.eia.gov/energyexplained/electricity/how-electricity-is-generated.php) informs the distinction between generation and cooling; [DHS basic plant components](https://cdp.dhs.gov/shared/se/courses/default/AWR-923-W%2005122021%201.2-20210512144644/groups/241.html) identifies the cooling loop's role. [HSE furnace-work guidance](https://www.hse.gov.uk/pubns/guidance/fd2.pdf) informed the visible extraction path. These are references for legible industrial function, not certification of the fictional facility.
 
-## Facade architecture
+## Modular architecture
 
-The user's futuristic-city reference adds a second level of composition inside the hall: readable floors, recessed glazing, large service panels, setbacks and exposed structural bays. `facade.ts` derives this architecture from the existing shape, height and deterministic appearance seed.
+The actual city now uses the WFC piece kit. The hall envelope reserves space while its solids are 25 non-overlapping, ground-supported stacks. All ground bays are occupied to enclose the industrial process and attach the existing service ports. The taller rear pads carry controls, the grid mast and an internal core. Rooflights and solar panels occupy their own pinned terraces; the front terrace, entrance approach and facade ladder stay connected.
 
-The working floor retains its process/loading openings. Upper floors use window and panel bays with stable, uneven occupancy lighting; loss of activity extinguishes lit windows. Stepped and tower profiles recess the infill while corner columns, diagonal braces and floor outriggers support the outer roof and floor edges. A backed right-side panel hosts the existing animated advert with readable lettering. Small joints and mullions appear only at closer zoom.
+Shape, role, height and appearance seed determine the layout. Warehouse halls are wider and lower, with a light court above the process floor; power halls can grow taller; foundries reserve a rooflight pad beside the extraction equipment. Modules and stock never reroll the hall. Equipment still changes the existing domain capacities, output, storage and emissions rules.
 
-Facade solids stay inside the hall's conservative reserved envelope. The envelope remains occupied for mounting/collision purposes: a visual recess is not a new equipment socket. Roof mounts, heavy-equipment bays and service-port coordinates remain unchanged. This does not introduce structural-load simulation or new gameplay floors.
+The generator uses the same adjacency propagation and core reachability as the Atlas lab with different pinned cells. Each roof attachment is validated against actual contact area across the underlying stacks. A conservative bounding envelope alone is no longer sufficient proof of roof support. No generated stack reaches into neighbouring plots or reserved ground equipment bays.
 
-The Atlas exposes architecture and facade-display controls; the workshop's existing shape choice now drives both hall setbacks and the control room. No new persisted fields are needed.
+`modular-hall.ts` projects the shared floor/window/brace kit into the hall volume. It caches the static facade in two raster layers, inserting the animated right-side display at its correct depth. Windows follow activity; names remain directly on the front wall. Geometry and raster caches are reused between frames, and offscreen structures are culled. These caches do not claim production-scale performance for 2,500 buildings.
+
+No save migration is required. Existing buildings acquire modular appearances deterministically while their IDs, positions, authors, modules and inventories remain intact. Workshop seed controls reproduce the same layout in preview, ghost, placement and reload.
 
 ## Ownership in code
 
@@ -46,8 +48,8 @@ The Atlas exposes architecture and facade-display controls; the workshop's exist
 - `mounts.ts`: reserved floorplans and mounting sockets, independent of fitted equipment.
 - `compose.ts`: role/module/stock configuration becomes an assembly with reasons and connections.
 - `draw-order.ts`: support-aware fixed-camera part ordering.
-- `facade.ts`: deterministic floor, window, panel and frame layout inside the hall envelope.
-- `src/rendering/canvas/buildings.ts`: draws equipment and services; `hall.ts` draws the facade architecture using the common palette.
+- `src/rendering/generation`: deterministic WFC solver, industrial constraints, exposed-bay kit and shared artwork.
+- `src/rendering/canvas/buildings.ts`: draws equipment and services; `modular-hall.ts` draws cached modular floors using the common palette.
 - `building-layout.ts`: external wires and heat pipes read the same physical ports as the artwork.
 - `BuildingPreview`: framing derives from the assembled bounds; city, workshop and Atlas share the same renderer.
 
@@ -55,7 +57,7 @@ The domain still owns capacities, production and saved module choices. It does n
 
 ## Acceptance and limits
 
-Tests cover all module subsets, all three core shapes, balcony on/off and representative heights including legacy limits (360 configurations), plus deliberately invalid collisions, support/mount failures, blocked access and broken routes. The Atlas can isolate each part and explains its role and support. Module changes must affect both the intended domain rule and its actual visible assembly.
+Tests additionally cover 432 role/shape/height/seed combinations, actual roof contact failures and preview/ghost/save recipe equality. Existing tests cover all module subsets, all three core shapes, balcony on/off and representative heights including legacy limits (360 configurations), plus deliberately invalid collisions, support/mount failures, blocked access and broken routes. The Atlas can isolate each part and explains its role and support. Module changes must affect both the intended domain rule and its actual visible assembly.
 
 This is a constrained procedural kit, not a general CAD or structural solver. Collision checks use conservative solid envelopes; they do not calculate mass, load, thermal performance, fluid physics or human-code compliance. Part-level painter ordering is intended for these floorplans and fixed camera; arbitrary intersecting meshes require a different renderer. City-wide cable/pipe routing still does not avoid every intervening building. The single-tile footprint, local simulation and multiplayer limitations are unchanged.
 

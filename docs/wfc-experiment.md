@@ -1,6 +1,6 @@
-# WFC building experiment
+# Modular WFC buildings
 
-Open **City → Design atlas → WFC lab**. Try Terraces, Spire and Courtyard, change the seed, lower the floor section and toggle the structural frame. The plan beside the preview shows the occupied bays at the selected floor. This is an experiment in massing and assembly, not the final art direction or a new playable building.
+Open **City → Design atlas → WFC lab**. Try Terraces, Spire and Courtyard, change the seed, lower the floor section and toggle the structural frame. The plan beside the preview shows the occupied bays at the selected floor. The lab remains a massing study. The same solver and piece artwork now also build the actual city halls through an industrial constraint profile.
 
 ## What is being solved
 
@@ -20,14 +20,20 @@ This is a small **simple tiled WFC** implementation inspired by [Maxim Gumin's o
 
 `draw-wfc.ts` renders slabs, wall/window panels, vertical supports, braces, roof caps/rails and the core/entry markers on common bay and storey datums. The renderer consumes the shared CSS palette through `readPalette()`. Sectioning clamps the displayed heights only, leaving the original solution and seed intact. The lab draws on resize/control changes, not a continuous animation loop.
 
-The current six-piece kit is a rendering grammar with semantic roles, not six independently solved mesh assets. Connectivity represents unobstructed floor adjacency; stair geometry, interior circulation, loads, fire egress, terrain adaptation, cantilevers and physical equipment routing are not solved. Lighting is illustrative, not powered by city services. The fixed camera displays the two camera-facing sides of each exposed bay.
+The current six-piece kit is a rendering grammar with semantic roles, not six independently solved mesh assets. Connectivity represents unobstructed floor adjacency; stair geometry, interior circulation, loads, fire egress, terrain adaptation, cantilevers and physical equipment routing are not solved. Lighting in the standalone lab is illustrative; city windows follow the actual local service activity. The fixed camera displays the two camera-facing sides of each exposed bay.
 
-## Experiment boundary
+## City profile and integration
 
-The lab has local React state and no city commands, persistence writes or SpacetimeDB schema changes. Existing city and workshop assets continue to use `rendering/assembly`. Its conservative volume validator is not used as proof that these experimental buildings are valid. No new dependencies are required.
+`city-massing.ts` is city kit version 1. It derives a recipe from the existing appearance seed, shape, height and building role. The front row stays one storey tall, the rear service pads carry controls and electrical hardware, and all ground cells enclose a continuous process floor. The core connects every upper floor. Foundries reserve a rooflight pad; warehouses reserve a solar terrace even before a retrofit and leave a light court above the ground floor. The role caps upper floor counts and determines the hall proportions.
 
-The next useful experiments are multi-bay hall tiles, typed edge sockets, service cores, roof equipment clearances and role-specific room constraints. Those should be judged visually and through meaningful industrial functions before promoting generated buildings into placement. Full 3D WFC may be worthwhile for bridges and overhangs; it adds support and access constraints that this height-field model intentionally cannot express.
+The solver has a bounded budget. A constructive, deterministic lower-bound layout is available on exhaustion and exposes a `fallback` flag for diagnostics; tested recipes do not exhaust. It is built from the same pinned heights and height-step bounds. Changes to kit version 1 must preserve determinism or introduce a deliberate future recipe migration; the current saves retain their existing schema and fractional appearance seed.
+
+`massingSolids` compiles actual stack volumes for assembly support checks. `modular-hall.ts` scales the common piece renderer into those same volumes; it draws two cached layers with an animated advert between them. `composeBuilding` attaches functional equipment using reserved pads. Domain production/network rules remain independent of floor geometry: more floors do not silently add capacity.
+
+Workshop, ghost, city and Assembly Atlas share this production renderer. Layout seeds are editable and replayable. The separate WFC lab has local React state and continues to demonstrate unconstrained terraces, spires and courtyards. It never writes a city save. No new dependency or SpacetimeDB change was introduced.
+
+Future experiments can add multi-bay hall tiles, typed sockets, service routing and more room constraints. Full 3D WFC would be needed to explore bridges and overhangs beyond the current ground-supported height field. Structural loads and interior egress remain outside the model.
 
 ## Verification
 
-Unit checks cover 300 seeds over three grammars, repeatability, shape diversity, adjacent height rules, per-floor connectivity, bounded failure and shared-face removal. A deliberately disconnected upper floor is rejected. Browser checks exercise seed replay, grammar changes, cutaways, structure view, mobile scrolling and unchanged city storage. This verifies the experiment's constraints, not architectural realism.
+Unit checks cover 300 seeds over three grammars, repeatability, shape diversity, adjacent height rules, per-floor connectivity, bounded failure and shared-face removal. A deliberately disconnected upper floor is rejected. City checks cover another 432 role/shape/height/seed combinations, all fitted modules, actual roof support failures and preview/ghost/save recipe equality. Browser checks exercise seed replay, grammar changes, cutaways, structure view, mobile scrolling and unchanged city storage. This verifies the experiment's constraints, not architectural realism.
