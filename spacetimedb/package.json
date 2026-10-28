@@ -1,0 +1,12 @@
+{
+  "name": "@induskorve/server",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "spacetimedb": "^2.13.0"
+  }
+}

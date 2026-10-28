@@ -1,4 +1,11 @@
-.DS_Store
 node_modules/
-.env
-.env.*
+dist/
+coverage/
+playwright-report/
+test-results/
+.env*
+!.env.example
+*.local
+spacetimedb/src/module_bindings/
+src/infrastructure/spacetimedb/module-bindings/
+.local-tools/

@@ -1,0 +1,73 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--foreground);
+  --color-popover: var(--card);
+  --color-popover-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: #18201c;
+  --color-secondary: #314238;
+  --color-secondary-foreground: var(--foreground);
+  --color-muted: #26372f;
+  --color-muted-foreground: #9bad9e;
+  --color-accent: #314238;
+  --color-accent-foreground: var(--foreground);
+  --color-destructive: #e49a81;
+  --color-border: #425047;
+  --color-input: #52634f;
+  --color-ring: var(--primary);
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+}
+:root {
+  --background: #111b1c;
+  --foreground: #e5e5d9;
+  --card: #192622;
+  --primary: #c9d6ac;
+}
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply m-0 bg-background text-foreground antialiased;
+    font-family: Arial, sans-serif;
+  }
+  button,
+  input {
+    font: inherit;
+  }
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+  }
+}
+@layer components {
+  .surface {
+    @apply border border-border bg-card/95 shadow-xl backdrop-blur-md;
+  }
+  .eyebrow {
+    @apply font-mono text-[10px] uppercase tracking-widest text-muted-foreground;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
