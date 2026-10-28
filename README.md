@@ -65,7 +65,7 @@ The isolated server workspace defines structures, appearances, citizens, presenc
 
 ## Building workshop
 
-After joining, use **Add building** to choose purpose, functional modules, service-core shape, height, balcony and optional facade display. The workshop renders the configuration before **Choose location** activates its ghost. Click revealed empty ground to place one building; Escape/right-click cancels. **City** contains camera, network and session controls; the bottom of the canvas stays clear. Appearance settings are optional in existing saves and persist separately from simulation entities.
+After joining, use **Add building** to choose purpose, functional modules, architecture, height, balcony and optional facade display. The workshop renders the configuration before **Choose location** activates its ghost. Click revealed empty ground to place one building; Escape/right-click cancels. **City** contains camera, network and session controls; the bottom of the canvas stays clear. Appearance settings are optional in existing saves and persist separately from simulation entities.
 
 ## Composable industry and visual language
 
@@ -75,6 +75,6 @@ The placement ghost forecasts its power/storage status and links before construc
 
 `src/app/palette.css` is the sole authored color source for Tailwind and Canvas, including pedestrians, adverts, semantic accents and terrain. `src/rendering/palette.ts` resolves those CSS tokens at renderer creation. Reload after editing palette values. The interface uses square corners, thin borders and flat surfaces, including dialogs, notifications and native controls.
 
-Open **City → Design atlas** to study each building assembled or with its layers separated. Isolate layers or individual parts, read why each part exists and what supports it, and toggle equipment and operating state. The Atlas and workshop use the actual city renderer. Atlas controls are temporary and do not change the city or its saved data. See [visual direction and references](docs/art-direction.md).
+Open **City → Design atlas** to study each building assembled or with its layers separated. Isolate layers or individual parts, read why each part exists and what supports it, and toggle equipment and operating state. Architecture controls vary the hall setbacks and control core; facade displays sit on a backed right-side panel. Upper floors have deterministic lit/dark windows and exposed frames. The Atlas and workshop use the actual city renderer. Atlas controls are temporary and do not change the city or its saved data. See [visual direction and references](docs/art-direction.md).
 
 The [building assembly contract](docs/building-assemblies.md) defines the process-first workflow, mounting and clearance rules, functional references, verification and current geometric limits.

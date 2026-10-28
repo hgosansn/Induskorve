@@ -1,3 +1,5 @@
+import { createHallRenderer } from './hall';
+import type { FacadeSurface } from '../assembly/facade';
 import type { Palette } from '../palette';
 import { createGeometry, iso, type Material } from './geometry';
 import { assemblyOffset, type BuildingStudy } from './building-layout';
@@ -17,6 +19,7 @@ export function createBuildingRenderer(
   p: Palette,
 ) {
   const g = createGeometry(ctx, p);
+  const drawHall = createHallRenderer(ctx, p);
   const ordered = new WeakMap<RenderBuilding, AssemblyPart[]>();
   return (
     b: RenderBuilding,
@@ -27,7 +30,7 @@ export function createBuildingRenderer(
       ghost?: boolean;
       selected?: boolean;
       study?: BuildingStudy;
-      facade?: (surface: Volume) => void;
+      facade?: (surface: FacadeSurface) => void;
     },
   ) => {
     const a = buildingAssembly(b),
@@ -111,82 +114,9 @@ export function createBuildingRenderer(
           box(v, g.dark);
           line([x, y + d, top], [x + w, y + d, top], p['concrete-shadow'], 0.8);
           break;
-        case 'hall': {
-          box(v, b.type === 'factory' ? g.dark : g.steel);
-          // Roof cap is contained in the structural envelope, with no floating lip.
-          box(volume(x, y, top - 0.2, w, d, 0.2), g.concrete);
-          for (let xx = x + 0.4; xx < x + w - 0.1; xx += 1.4) {
-            line(
-              [xx, y + d, z + 0.3],
-              [xx, y + d, top - 0.3],
-              p['concrete-shadow'],
-              0.7,
-            );
-          }
-          if (b.type === 'warehouse') {
-            for (let i = 0; i < 3; i++) {
-              const xx = x + 1.1 + i * 3;
-              face(
-                [
-                  [xx, y + d + 0.005, z + 0.15],
-                  [xx + 2, y + d + 0.005, z + 0.15],
-                  [xx + 2, y + d + 0.005, top - 0.5],
-                  [xx, y + d + 0.005, top - 0.5],
-                ],
-                p.ink,
-              );
-              strip(xx, y + d + 0.01, top - 0.45, 2);
-              if (fine)
-                for (let zz = z + 0.7; zz < top - 0.6; zz += 0.55)
-                  line(
-                    [xx + 0.1, y + d + 0.015, zz],
-                    [xx + 1.9, y + d + 0.015, zz],
-                    p.steel,
-                    0.4,
-                  );
-            }
-          } else if (b.type === 'factory') {
-            const xx = x + 2;
-            face(
-              [
-                [xx, y + d + 0.005, z + 0.3],
-                [xx + 2, y + d + 0.005, z + 0.3],
-                [xx + 2, y + d + 0.005, z + 2.6],
-                [xx, y + d + 0.005, z + 2.6],
-              ],
-              p.ink,
-            );
-            for (let i = 0; i < 4; i++)
-              strip(
-                xx + 0.2,
-                y + d + 0.01,
-                z + 0.65 + i * 0.45,
-                1.6,
-                p.production,
-              );
-            if (active)
-              g.glow(project(xx + 1, y + d, z + 1.3), p.production, 8, 0.28);
-          } else {
-            for (let yy = y + 0.5; yy < y + d - 0.4; yy += 0.7)
-              line(
-                [x + w + 0.005, yy, z + 0.6],
-                [x + w + 0.005, yy, top - 0.5],
-                p.edge,
-                0.5,
-              );
-            strip(x + 0.7, y + d + 0.01, top - 0.7, w - 1.4);
-          }
-          onFace(
-            v,
-            b.type === 'power'
-              ? 'GEN 01'
-              : b.type === 'factory'
-                ? 'MELT 01'
-                : 'FREIGHT',
-          );
-          options.facade?.(v);
+        case 'hall':
+          drawHall(b, v, active, options.zoom, options.facade);
           break;
-        }
         case 'control':
           box(v, g.dark);
           box(volume(x, y, top - 0.12, w, d, 0.12), g.steel);

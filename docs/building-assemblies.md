@@ -30,13 +30,24 @@ The scrubber replaces the extraction bypass in the same bay. It does not appear 
 
 Functional references: the [EIA explanation of turbine generators](https://www.eia.gov/energyexplained/electricity/how-electricity-is-generated.php) informs the distinction between generation and cooling; [DHS basic plant components](https://cdp.dhs.gov/shared/se/courses/default/AWR-923-W%2005122021%201.2-20210512144644/groups/241.html) identifies the cooling loop's role. [HSE furnace-work guidance](https://www.hse.gov.uk/pubns/guidance/fd2.pdf) informed the visible extraction path. These are references for legible industrial function, not certification of the fictional facility.
 
+## Facade architecture
+
+The user's futuristic-city reference adds a second level of composition inside the hall: readable floors, recessed glazing, large service panels, setbacks and exposed structural bays. `facade.ts` derives this architecture from the existing shape, height and deterministic appearance seed.
+
+The working floor retains its process/loading openings. Upper floors use window and panel bays with stable, uneven occupancy lighting; loss of activity extinguishes lit windows. Stepped and tower profiles recess the infill while corner columns, diagonal braces and floor outriggers support the outer roof and floor edges. A backed right-side panel hosts the existing animated advert with readable lettering. Small joints and mullions appear only at closer zoom.
+
+Facade solids stay inside the hall's conservative reserved envelope. The envelope remains occupied for mounting/collision purposes: a visual recess is not a new equipment socket. Roof mounts, heavy-equipment bays and service-port coordinates remain unchanged. This does not introduce structural-load simulation or new gameplay floors.
+
+The Atlas exposes architecture and facade-display controls; the workshop's existing shape choice now drives both hall setbacks and the control room. No new persisted fields are needed.
+
 ## Ownership in code
 
 - `src/rendering/assembly/model.ts`: presentation-only parts, mounts, solid envelopes, clearances, ports, routes and validation.
 - `mounts.ts`: reserved floorplans and mounting sockets, independent of fitted equipment.
 - `compose.ts`: role/module/stock configuration becomes an assembly with reasons and connections.
 - `draw-order.ts`: support-aware fixed-camera part ordering.
-- `src/rendering/canvas/buildings.ts`: draws each part inside its envelope using the common palette.
+- `facade.ts`: deterministic floor, window, panel and frame layout inside the hall envelope.
+- `src/rendering/canvas/buildings.ts`: draws equipment and services; `hall.ts` draws the facade architecture using the common palette.
 - `building-layout.ts`: external wires and heat pipes read the same physical ports as the artwork.
 - `BuildingPreview`: framing derives from the assembled bounds; city, workshop and Atlas share the same renderer.
 

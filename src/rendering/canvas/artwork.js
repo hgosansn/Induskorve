@@ -279,12 +279,12 @@ export function createArtwork(ctx) {
       g.fillStyle = P['foreground'] + '14';
       g.fillRect(0, ((phase * 15) % 180) - 20, w, 16);
     }
-    const top = iso(x, y, z + height);
+    const top = iso(x, y + width, z + height);
     ctx.save();
     ctx.translate(...top);
     ctx.transform(
-      (-27 * width) / 96,
-      (13.5 * width) / 96,
+      (27 * width) / 96,
+      (-13.5 * width) / 96,
       0,
       height / 160,
       0,
@@ -310,11 +310,11 @@ export function createArtwork(ctx) {
               drawAdvert(
                 b,
                 t,
-                b.x + (v.x + v.w) / KIT_SIZE,
-                b.y + (v.y + 0.5) / KIT_SIZE,
-                (v.d - 1) / KIT_SIZE,
-                (v.z + 0.4) * KIT_Z,
-                (v.h - 0.8) * KIT_Z,
+                b.x + v.x / KIT_SIZE,
+                b.y + v.y / KIT_SIZE,
+                v.width / KIT_SIZE,
+                v.z * KIT_Z,
+                v.height * KIT_Z,
                 on,
               );
             }

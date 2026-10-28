@@ -32,6 +32,7 @@ This section supersedes historical implementation/layout/run instructions below.
 - Read `docs/building-assemblies.md` before adding geometry. Process → floorplan → mounting bays and clearances → compatible service ports → artwork.
 - `src/rendering/assembly/mounts.ts` defines bays before equipment is fitted. `compose.ts` snaps parts into them. `model.ts` validates support contact, solid intersections, access lanes and pipe routing. All geometry uses one 12-unit local kit; Canvas conversion is confined to rendering.
 - Keep heavy equipment on supported ground bays. Reserve roofs for the declared control, daylight, access, solar and grid equipment. Optional modules may not overlap a rooflight or block an access path.
+- Hall facades follow the user-supplied futuristic-city reference: floor bands, recessed glazing, panels and exposed structure. `assembly/facade.ts` derives stable layouts from shape/height/seed; `canvas/hall.ts` renders them. Keep all relief inside the conservative hall envelope and preserve roof mounts. Shape now changes hall setbacks as well as the control room.
 - Layers are semantic inspection groups, never a drawing order. Keep external wire/heat endpoints and facade displays attached to their actual assembly surfaces.
 - Existing tests exercise 360 shape/height/module/balcony combinations and intentional invalid assemblies. Envelope validation is not structural engineering, general mesh collision or city-wide route avoidance.
 

@@ -29,6 +29,10 @@ The city is the main visual. A restrained square interface surrounds it; no hero
 
 Every asset reads in three levels: silhouette first, structure second, small fittings only at closer zoom. Maintain repeated construction rhythms and large quiet faces; do not add random antennas or decorative machinery. Avoid borrowing the references' scale literally: one tile remains one actual building footprint.
 
+## Supplied city reference: architectural depth
+
+The user's supplied city image establishes layered facade geometry: recessed illuminated floors, stepped infill, broad panel fields, deep overhangs, exposed braces and integrated displays. Apply this hierarchy to the existing industrial kit. Detail follows the floor grid and structural bays, and light is uneven rather than filling every window. Preserve the shared muted palette and semantic role accents. The reference image is not shipped as an asset.
+
 ## Review surface
 
 The Atlas uses the same building drawing code as the city and workshop. It exposes foundation, shell, machinery, fitted modules and services in assembled and exploded views, plus operating/idle states. Its configuration is temporary and never edits or saves the city. Spectators may use it.

@@ -99,7 +99,7 @@ export function BuildingWorkshop({ store }: { store: CityStore }) {
               </ToggleGroup>
             </fieldset>
             <fieldset>
-              <legend className="mb-2 text-sm">Shape</legend>
+              <legend className="mb-2 text-sm">Architecture</legend>
               <ToggleGroup
                 type="single"
                 value={draft.design.shape}
@@ -114,6 +114,10 @@ export function BuildingWorkshop({ store }: { store: CityStore }) {
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Shapes the hall setbacks and control room; equipment stays in
+                its mounted bays.
+              </p>
             </fieldset>
             <div>
               <Label htmlFor="building-height">Height · {draft.height}</Label>

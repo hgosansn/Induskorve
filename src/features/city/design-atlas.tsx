@@ -16,6 +16,7 @@ import {
   moduleKinds,
   type BuildingKind,
   type BuildingModule,
+  type BuildingDesign,
 } from '../../domain/city/model';
 import { MODULES } from '../../domain/city/catalog';
 import { composeBuilding } from '../../rendering/assembly/compose';
@@ -66,15 +67,17 @@ export function DesignAtlas() {
   const [active, setActive] = useState(true);
   const [stock, setStock] = useState(true);
   const [partId, setPartId] = useState('all');
+  const [shape, setShape] = useState<BuildingDesign['shape']>('stepped');
+  const [display, setDisplay] = useState(false);
   const draft = {
     ...defaultDraft,
     kind,
-    height: 58,
+    height: 78,
     modules,
     design: {
       ...defaultDraft.design,
-      shape: 'stepped' as const,
-      display: 'none' as const,
+      shape,
+      display: display ? ('animated' as const) : ('none' as const),
     },
   };
   const assembly = composeBuilding({
@@ -125,6 +128,13 @@ export function DesignAtlas() {
               >
                 {active ? 'Operating' : 'Idle'}
               </Button>
+              <Button
+                variant="outline"
+                aria-pressed={display}
+                onClick={() => setDisplay(!display)}
+              >
+                Facade display
+              </Button>
               {kind === 'warehouse' && (
                 <Button
                   variant="outline"
@@ -165,6 +175,25 @@ export function DesignAtlas() {
                 {families[kind].description}
               </p>
             </div>
+            <fieldset>
+              <legend className="mb-2 text-sm">Architecture</legend>
+              <ToggleGroup
+                type="single"
+                value={shape}
+                aria-label="Architecture"
+                onValueChange={(value) => {
+                  if (value) setShape(value as BuildingDesign['shape']);
+                }}
+              >
+                <ToggleGroupItem value="block">Block</ToggleGroupItem>
+                <ToggleGroupItem value="stepped">Stepped</ToggleGroupItem>
+                <ToggleGroupItem value="tower">Tower</ToggleGroupItem>
+              </ToggleGroup>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Floor setbacks and exposed frames shape the hall; machinery
+                keeps its reserved bays.
+              </p>
+            </fieldset>
             <div className="space-y-2 border-t border-border pt-4">
               <Label htmlFor="atlas-part">Why is this part here?</Label>
               <select
