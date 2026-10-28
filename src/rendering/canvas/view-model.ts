@@ -15,6 +15,11 @@ import { revealedTerrain } from '../../domain/city/terrain';
 import { tileKey } from '../../domain/city/model';
 import { buildingStats } from '../../domain/city/catalog';
 import type { BuildingStudy } from './building-layout';
+import {
+  buildStreets,
+  streetSignature,
+  type StreetLayout,
+} from '../../domain/city/streets';
 
 export interface RenderBuilding extends Building {
   stock?: number;
@@ -24,6 +29,12 @@ export interface RenderBuilding extends Building {
   adImage?: string;
 }
 export interface Walker extends Position {
+  node?: string;
+  target?: string;
+  route?: string[];
+  wait?: number;
+  trips?: number;
+  moving?: boolean;
   tx: number;
   ty: number;
   phase: number;
@@ -43,6 +54,7 @@ export interface RenderLink {
   weight: number;
 }
 export interface RenderWorld {
+  streets: StreetLayout;
   buildings: Map<string, RenderBuilding>;
   terrain: Map<string, Position & { exposure?: number }>;
   net: Map<RenderBuilding, RenderNetwork>;
@@ -151,8 +163,16 @@ export function projectWorld(
           tile.exposure = (tile.exposure ?? 0) + emissions / (1 + distance);
       }
   }
+  const buildings = new Map(
+    [...byId.values()].map((b) => [tileKey(b.x, b.y), b]),
+  );
+  const signature = streetSignature(buildings.values(), terrain);
   return {
-    buildings: new Map([...byId.values()].map((b) => [tileKey(b.x, b.y), b])),
+    streets:
+      previous?.streets.signature === signature
+        ? previous.streets
+        : buildStreets(buildings, terrain, signature),
+    buildings,
     terrain,
     net: new Map(
       [...byId.values()].map((b) => {

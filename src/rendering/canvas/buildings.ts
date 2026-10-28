@@ -123,8 +123,7 @@ export function createBuildingRenderer(
         top = z + h;
       switch (part.kind) {
         case 'foundation':
-          box(v, g.dark);
-          line([x, y + d, top], [x + w, y + d, top], p['concrete-shadow'], 0.8);
+          for (const footing of part.solids) box(footing, g.dark);
           break;
         case 'hall':
           drawHall(b, v, active, options.zoom, options.facade);

@@ -2,6 +2,7 @@ import { serviceStatus } from '../../domain/city/networks';
 import { readPalette } from '../palette';
 import { createBuildingRenderer } from './buildings';
 import { createTerrainRenderer } from './terrain-art';
+import { createStreetLampRenderer } from './streets';
 import { iso } from './geometry';
 import { attachment } from './building-layout';
 import { KIT_SIZE, KIT_Z } from '../assembly/model';
@@ -33,6 +34,7 @@ export function createArtwork(ctx) {
   const P = readPalette();
   const drawBuilding = createBuildingRenderer(ctx, P);
   const drawTerrain = createTerrainRenderer(ctx, P);
+  const drawStreetLamp = createStreetLampRenderer(ctx, P);
   const COLORS = {
     power: P.power,
     materials: P.materials,
@@ -120,7 +122,7 @@ export function createArtwork(ctx) {
     ctx.beginPath();
     ctx.ellipse(p[0], p[1], 2.8, 1.1, 0, 0, 7);
     ctx.fill();
-    let stride = Math.sin(t * 8 + w.phase) * 1.1;
+    let stride = w.moving ? Math.sin(t * 8 + w.phase) * 1.1 : 0.45;
     line([p[0] - 0.6, p[1] - 2], [p[0] - stride, p[1]], P['surface'], 1);
     line([p[0] + 0.6, p[1] - 2], [p[0] + stride, p[1]], P['surface'], 1);
     line(
@@ -383,9 +385,16 @@ export function createArtwork(ctx) {
         b,
       })),
       ...walkers.map((w) => ({ x: w.x, y: w.y, w })),
+      ...(study ? [] : frame.streets.lamps.map((lamp) => ({ ...lamp, lamp }))),
     ]
       .sort((a, b) => a.x + a.y - b.x - b.y)
-      .forEach((e) => (e.b ? building(e.b, clock) : pedestrian(e.w, clock)));
+      .forEach((e) =>
+        e.b
+          ? building(e.b, clock)
+          : e.lamp
+            ? drawStreetLamp(e.lamp)
+            : pedestrian(e.w, clock),
+      );
     drawConnections(clock);
     if (hover && citizen && mode !== 'inspect') {
       let { x, y } = hover;

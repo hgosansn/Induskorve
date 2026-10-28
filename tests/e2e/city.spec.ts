@@ -505,7 +505,11 @@ test('canvases stop repainting when reduced-motion idle or covered by a dialog',
   await page.waitForTimeout(250);
   expect(await counts()).toEqual(still);
   await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
+  // The atlas exits before its parent dialog regains the dismissal layer.
+  // Two immediate Escape events can both reach the exiting atlas.
+  const controls = page.getByRole('dialog', { name: 'City controls' });
+  await expect(controls).toBeVisible();
+  await controls.getByRole('button', { name: 'Close', exact: true }).click();
   await expect
     .poll(async () => (await counts()).city)
     .toBeGreaterThan(still.city);

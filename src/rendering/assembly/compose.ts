@@ -56,7 +56,7 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
     'base',
     'foundation',
     'Foundation and apron',
-    'Carries the building and its heavy equipment. The front apron remains available for access.',
+    'Individual footings carry the hall and ground-mounted equipment. The surrounding apron stays at street level.',
     'foundation',
   );
   const hall = add(
@@ -305,6 +305,15 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
     'Connects the apron to the front terrace. The internal stair core connects the upper floors.',
     'services',
   );
+  // Footings follow actual ground contact, including crane legs rather than its
+  // overhead beam. Empty portions of a plot are flat ground, not a raised tile.
+  a.parts[0]!.solids = a.parts
+    .filter((p) => a.mounts.find((m) => m.id === p.mount)?.support === 'base')
+    .flatMap((p) =>
+      p.solids
+        .filter((s) => Math.abs(s.z - floor) < 0.001)
+        .map((s) => volume(s.x, s.y, 0, s.w, s.d, floor)),
+    );
   return a;
 }
 const cache = new WeakMap<AssemblyInput, BuildingAssembly>();

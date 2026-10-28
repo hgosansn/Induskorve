@@ -158,30 +158,28 @@ export function validateAssembly(a: BuildingAssembly): string[] {
       continue;
     }
     if (m.face === 'top') {
-      // A mounted pad may span multiple adjoining WFC stacks. Sum the contact
-      // area of their non-overlapping top faces instead of trusting the envelope.
-      const contact = supportingPart.solids.reduce((area, s) => {
-        if (Math.abs(p.volume.z - s.z - s.h) > EPS) return area;
-        return (
-          area +
-          Math.max(
-            0,
-            Math.min(p.volume.x + p.volume.w, s.x + s.w) -
-              Math.max(p.volume.x, s.x),
-          ) *
-            Math.max(
-              0,
-              Math.min(p.volume.y + p.volume.d, s.y + s.d) -
-                Math.max(p.volume.y, s.y),
-            )
-        );
-      }, 0);
+      // Validate the actual feet, not the empty space under a crane or a
+      // compositional hall envelope. Every lowest solid must be fully carried.
+      const feet = p.solids.filter((s) => Math.abs(s.z - p.volume.z) < EPS);
       if (
-        Math.abs(contact - p.volume.w * p.volume.d) > EPS ||
-        p.volume.x < support.x - EPS ||
-        p.volume.x + p.volume.w > support.x + support.w + EPS ||
-        p.volume.y < support.y - EPS ||
-        p.volume.y + p.volume.d > support.y + support.d + EPS
+        !feet.length ||
+        feet.some((foot) => {
+          const contact = supportingPart.solids.reduce((area, s) => {
+            if (Math.abs(foot.z - s.z - s.h) > EPS) return area;
+            return (
+              area +
+              Math.max(
+                0,
+                Math.min(foot.x + foot.w, s.x + s.w) - Math.max(foot.x, s.x),
+              ) *
+                Math.max(
+                  0,
+                  Math.min(foot.y + foot.d, s.y + s.d) - Math.max(foot.y, s.y),
+                )
+            );
+          }, 0);
+          return Math.abs(contact - foot.w * foot.d) > EPS;
+        })
       )
         errors.push(`${p.id}: unsupported top mount`);
     } else if (

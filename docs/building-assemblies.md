@@ -32,6 +32,8 @@ Functional references: the [EIA explanation of turbine generators](https://www.e
 
 ## Modular architecture
 
+Foundations follow the actual ground-contact solids of the hall and fitted machinery. Crane legs have separate footings; the span beneath the beam and the surrounding apron stay open at street level. Support validation checks each lowest solid against its supporting faces, so an empty envelope no longer requires a full rectangular plinth. Flat pedestrian paths use the reserved outer margin and front door approach; they never traverse the machinery bays.
+
 The actual city now uses the WFC piece kit. The hall envelope reserves space while its solids are 25 non-overlapping, ground-supported stacks. All ground bays are occupied to enclose the industrial process and attach the existing service ports. The taller rear pads carry controls, the grid mast and an internal core. Rooflights and solar panels occupy their own pinned terraces; the front terrace, entrance approach and facade ladder stay connected.
 
 Shape, role, height and appearance seed determine the layout. Warehouse halls are wider and lower, with a light court above the process floor; power halls can grow taller; foundries reserve a rooflight pad beside the extraction equipment. Modules and stock never reroll the hall. Equipment still changes the existing domain capacities, output, storage and emissions rules.

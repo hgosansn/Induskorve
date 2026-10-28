@@ -24,6 +24,38 @@ function input(type: BuildingKind): AssemblyInput {
   };
 }
 describe('building assembly contracts', () => {
+  it('places footings only beneath ground-contact solids, leaving crane voids and aprons open', () => {
+    for (const type of families) {
+      const a = composeBuilding({
+        ...input(type),
+        modules: type === 'warehouse' ? ['loading-bay'] : [],
+      });
+      const base = a.parts.find((p) => p.id === 'base')!;
+      const groundParts = a.parts.filter(
+        (p) => a.mounts.find((m) => m.id === p.mount)?.support === 'base',
+      );
+      const feet = groundParts.flatMap((p) =>
+        p.solids.filter((s) => Math.abs(s.z - base.volume.h) < 0.001),
+      );
+      expect(base.solids).toHaveLength(feet.length);
+      for (const pad of base.solids)
+        expect(
+          feet.some(
+            (s) =>
+              s.x === pad.x && s.y === pad.y && s.w === pad.w && s.d === pad.d,
+          ),
+        ).toBe(true);
+      expect(base.solids.reduce((area, s) => area + s.w * s.d, 0)).toBeLessThan(
+        base.volume.w * base.volume.d * 0.85,
+      );
+      const removed = base.solids.shift()!;
+      expect(
+        validateAssembly(a).some((e) => e.includes('unsupported top mount')),
+      ).toBe(true);
+      base.solids.unshift(removed);
+      expect(validateAssembly(a)).toEqual([]);
+    }
+  });
   it('reserves the same mounting bays before and after equipment is installed', () => {
     const empty = composeBuilding(input('power'));
     const fitted = composeBuilding({
