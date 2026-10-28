@@ -31,12 +31,38 @@ export const imageSourceSchema = z
     /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/,
     'Unsupported local billboard image',
   );
+export const designSchema = z.object({
+  shape: z.enum(['block', 'stepped', 'tower']),
+  stacks: z.boolean(),
+  balcony: z.boolean(),
+  display: z.enum(['animated', 'none']),
+});
+export type BuildingDesign = z.infer<typeof designSchema>;
+export const draftSchema = z.object({
+  kind: buildingKindSchema,
+  height: z.number().min(24).max(85),
+  seed: z.number().min(0).max(1),
+  design: designSchema,
+});
+export type BuildingDraft = z.infer<typeof draftSchema>;
+export const defaultDraft: BuildingDraft = {
+  kind: 'factory',
+  height: 48,
+  seed: 0.5,
+  design: {
+    shape: 'stepped',
+    stacks: true,
+    balcony: true,
+    display: 'animated',
+  },
+};
 // Presentation metadata is deliberately absent from Building and simulation rules.
 export const appearanceSchema = z.object({
   buildingId: buildingSchema.shape.id,
   height: z.number().finite().min(8).max(160),
   seed: z.number().finite().min(0).max(1),
   billboard: imageSourceSchema.optional(),
+  design: designSchema.optional(),
 });
 export type BuildingAppearance = z.infer<typeof appearanceSchema>;
 export const worldSchema = z

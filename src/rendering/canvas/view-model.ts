@@ -1,3 +1,4 @@
+import type { BuildingDesign, BuildingDraft } from '../../domain/city/model';
 import type {
   Building,
   Citizen,
@@ -14,6 +15,7 @@ import { revealedTerrain } from '../../domain/city/terrain';
 import { tileKey } from '../../domain/city/model';
 
 export interface RenderBuilding extends Building {
+  design?: BuildingDesign;
   h: number;
   variant: number;
   adImage?: string;
@@ -44,6 +46,7 @@ export interface RenderWorld {
   links: RenderLink[];
 }
 export interface RenderFrame extends RenderWorld {
+  draft?: BuildingDraft;
   W: number;
   H: number;
   dpr: number;
@@ -71,6 +74,7 @@ export function projectWorld(world: WorldSnapshot): RenderWorld {
           h: appearance?.height ?? 35,
           variant: appearance?.seed ?? 0.5,
           adImage: appearance?.billboard,
+          design: appearance?.design,
         },
       ] as const;
     }),

@@ -1,3 +1,8 @@
+import {
+  defaultDraft,
+  draftSchema,
+  type BuildingDraft,
+} from '../domain/city/model';
 import { create } from 'zustand';
 import type { CityRepository } from './city-repository';
 import {
@@ -16,6 +21,8 @@ import type {
 } from '../domain/city/model';
 
 export interface CityState {
+  draft: BuildingDraft;
+  prepare(draft: BuildingDraft): void;
   world: WorldSnapshot;
   citizenId: string | null;
   selectedId: number | null;
@@ -51,6 +58,12 @@ export function createCityStore(repository: CityRepository) {
       set({ world, warning });
     };
     return {
+      draft: defaultDraft,
+      prepare(draft) {
+        const parsed = draftSchema.parse(draft);
+        if (!get().citizenId) throw new Error('Join the city first.');
+        set({ draft: parsed, tool: parsed.kind, selectedId: null });
+      },
       world: loaded.world ?? createFoundingWorld(),
       citizenId: null,
       selectedId: null,
@@ -70,7 +83,11 @@ export function createCityStore(repository: CityRepository) {
         set({ selectedId });
       },
       setTool(tool) {
-        set({ tool: get().citizenId ? tool : 'inspect' });
+        set({
+          tool: get().citizenId ? tool : 'inspect',
+          draft:
+            tool === 'inspect' ? get().draft : { ...get().draft, kind: tool },
+        });
       },
       setLayer(layer) {
         set({ layer });
@@ -90,8 +107,10 @@ export function createCityStore(repository: CityRepository) {
               s.citizenId,
               s.tool as BuildingKind,
               position,
+              s.draft,
             ),
           );
+        set({ tool: 'inspect' });
       },
       toggle(id) {
         const s = get();

@@ -1,3 +1,4 @@
+import { draftSchema, type BuildingDraft } from './model';
 import { RULES } from './catalog';
 import {
   buildingKindSchema,
@@ -77,9 +78,11 @@ export function placeBuilding(
   citizenId: string | null,
   kind: BuildingKind,
   position: Position,
+  draft?: BuildingDraft,
 ): WorldSnapshot {
+  const configured = draft ? draftSchema.parse(draft) : undefined;
   const citizen = requireCitizen(world, citizenId);
-  const type = buildingKindSchema.parse(kind);
+  const type = buildingKindSchema.parse(configured?.kind ?? kind);
   const p = positionSchema.parse(position);
   if (world.buildings.length >= RULES.maxBuildings)
     throw new Error('Local structure limit reached.');
@@ -110,8 +113,12 @@ export function placeBuilding(
       {
         buildingId: id,
         height:
-          type === 'power' ? 36 + Math.random() * 35 : 22 + Math.random() * 55,
-        seed: Math.random(),
+          configured?.height ??
+          (type === 'power'
+            ? 36 + Math.random() * 35
+            : 22 + Math.random() * 55),
+        seed: configured?.seed ?? Math.random(),
+        design: configured?.design,
       },
     ],
   };

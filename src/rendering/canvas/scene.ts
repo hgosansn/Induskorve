@@ -1,3 +1,4 @@
+import type { BuildingDraft } from '../../domain/city/model';
 import { createArtwork } from './artwork.js';
 import { advanceWalkers, syncWalkers } from './pedestrians';
 import { projectWorld, type RenderFrame } from './view-model';
@@ -10,6 +11,7 @@ import {
 } from '../../domain/city/model';
 
 export interface SceneState {
+  draft?: BuildingDraft;
   world: WorldSnapshot;
   citizenId: string | null;
   tool: Tool;
@@ -115,6 +117,7 @@ export function createCityScene(
     frame.selected =
       [...frame.buildings.values()].find((b) => b.id === state.selectedId) ??
       null;
+    frame.draft = state.draft;
     frame.mode = state.tool;
     frame.grid = state.grid;
     frame.layer = state.layer;

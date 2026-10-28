@@ -18,7 +18,8 @@ export function createArtwork(ctx) {
     links,
     walkers,
     citizen,
-    layer;
+    layer,
+    draft;
   const key = (x, y) => `${x},${y}`;
   const COLORS = {
     power: '#ebca5e',
@@ -28,7 +29,11 @@ export function createArtwork(ctx) {
   };
   const iso = (x, y, z = 0) => [(x - y) * 27, (x + y) * 13.5 - z];
   function attachment(b, kind) {
-    const h = b.type === 'warehouse' ? 16 + variation(b, 2) * 16 : b.h;
+    const h = b.design
+      ? b.h
+      : b.type === 'warehouse'
+        ? 16 + variation(b, 2) * 16
+        : b.h;
     return {
       x: b.x + (kind === 'power' ? 0.46 : 0.64),
       y: b.y + (kind === 'power' ? 0.51 : 0.4),
@@ -91,7 +96,11 @@ export function createArtwork(ctx) {
   function buildingIdentity(b, t, ghost) {
     const n = net.get(b),
       color = COLORS[b.type] || COLORS.factory;
-    let h = b.type === 'warehouse' ? 16 + variation(b, 2) * 16 : b.h;
+    let h = b.design
+      ? b.h
+      : b.type === 'warehouse'
+        ? 16 + variation(b, 2) * 16
+        : b.h;
     // Colored fascia on two faces is readable even with network lines hidden.
     poly(
       [
@@ -120,7 +129,6 @@ export function createArtwork(ctx) {
       p[0],
       p[1],
     );
-    if (ghost) return;
     // Real rooftop hardware replaces abstract circular endpoint markers.
     {
       const p = attachment(b, 'power'),
@@ -154,8 +162,9 @@ export function createArtwork(ctx) {
   }
   function variation(b, n) {
     let v =
-      Math.sin(b.x * 127.1 + b.y * 311.7 + b.variant * 71 + n * 74.7) *
-      43758.5453;
+      Math.sin(
+        (b.design ? 0 : b.x * 127.1 + b.y * 311.7) + b.variant * 71 + n * 74.7,
+      ) * 43758.5453;
     return v - Math.floor(v);
   }
   function pedestrian(w, t) {
@@ -215,14 +224,14 @@ export function createArtwork(ctx) {
   const advertCache = new Map(),
     advertImages = new Map();
   function drawAdvert(b, t, x, y, width, z, height, on) {
-    const v = (n) => variation(b, n);
-    let entry = advertCache.get(b);
+    const v = (n) => variation(b.design ? { ...b, x: 0, y: 0 } : b, n);
+    let entry = advertCache.get(b.id);
     if (!entry) {
       const c = document.createElement('canvas');
       c.width = 96;
       c.height = 160;
       entry = { canvas: c, frame: -1 };
-      advertCache.set(b, entry);
+      advertCache.set(b.id, entry);
     }
     const frame = Math.floor(t * 12);
     if (entry.frame !== frame) {
@@ -358,7 +367,7 @@ export function createArtwork(ctx) {
   function building(b, t, ghost = false) {
     let { x, y, h, type } = b;
     let on = ghost ? true : (net.get(b)?.active ?? b.on);
-    const v = (n) => variation(b, n);
+    const v = (n) => variation(b.design ? { ...b, x: 0, y: 0 } : b, n);
     ctx.globalAlpha = ghost ? 0.5 : 1;
     let styles = [
       ['#667064', '#3e4d44', '#2d3d35'],
@@ -367,7 +376,7 @@ export function createArtwork(ctx) {
       ['#586461', '#364641', '#273b35'],
     ];
     let c = styles[Math.floor(v(1) * styles.length)],
-      tall = type === 'warehouse' ? 16 + v(2) * 16 : h;
+      tall = b.design ? h : type === 'warehouse' ? 16 + v(2) * 16 : h;
     let w = 0.57 + v(3) * 0.22,
       d = 0.58 + v(4) * 0.22,
       ox = 0.1 + (1 - w) * 0.2,
@@ -378,7 +387,15 @@ export function createArtwork(ctx) {
       '#28372d',
     ]);
     // Tiered masses and attached machinery change silhouettes without changing footprints.
-    let tier = v(6) > 0.55 && type !== 'warehouse';
+    if (b.design?.shape === 'tower') {
+      w = 0.5;
+      d = 0.5;
+      ox = 0.25;
+      oy = 0.25;
+    }
+    let tier = b.design
+      ? b.design.shape === 'stepped'
+      : v(6) > 0.55 && type !== 'warehouse';
     face(x + ox, y + oy, w, d, 3, tier ? tall * 0.68 : tall, c);
     if (tier)
       face(
@@ -448,8 +465,15 @@ export function createArtwork(ctx) {
         ]);
     } else {
       // Roof ventilation or chimneys; only some factories have stacks.
-      let count =
-        type === 'power' ? 2 + Math.floor(v(14) * 2) : v(15) > 0.45 ? 1 : 0;
+      let count = b.design
+        ? b.design.stacks
+          ? 2
+          : 0
+        : type === 'power'
+          ? 2 + Math.floor(v(14) * 2)
+          : v(15) > 0.45
+            ? 1
+            : 0;
       for (let k = 0; k < count; k++) {
         let sx = x + ox + 0.08 + k * 0.2,
           sy = y + oy + 0.1,
@@ -504,7 +528,7 @@ export function createArtwork(ctx) {
         );
     }
     // Service balconies, ladders, and an asymmetric exterior pipe.
-    if (v(20) > 0.45) {
+    if (b.design ? b.design.balcony : v(20) > 0.45) {
       let z = Math.max(8, tall * 0.48);
       face(x + ox - 0.035, y + oy + d, 0.5, 0.12, z, 2, [
         '#8a8f71',
@@ -566,7 +590,7 @@ export function createArtwork(ctx) {
       ctx.restore();
     }
     // The broad right-hand wall carries a nearly full-height LED advertising surface.
-    if (tall > 22 && !ghost) {
+    if (tall > 22 && b.design?.display !== 'none') {
       drawAdvert(
         b,
         t,
@@ -634,6 +658,7 @@ export function createArtwork(ctx) {
       walkers,
       citizen,
       layer,
+      draft,
     } = frame);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#111b1c';
@@ -710,15 +735,17 @@ export function createArtwork(ctx) {
         valid ? '#d0e6ad22' : '#dd9a7833',
         valid ? '#c5d7a0' : '#dd9a78',
       );
-      if (mode !== 'inspect' && valid)
+      if (mode !== 'inspect')
         building(
           {
             x,
             y,
-            h: mode === 'power' ? 60 : 35,
+            id: -1,
+            h: draft?.height ?? 48,
+            design: draft?.design,
             type: mode,
             on: true,
-            variant: 0.5,
+            variant: draft?.seed ?? 0.5,
           },
           clock,
           true,

@@ -62,3 +62,7 @@ The isolated server workspace defines structures, appearances, citizens, presenc
 - Local billboard uploads accept PNG/JPEG/WebP/GIF up to 1.5 MB. Animated GIF playback is not guaranteed by Canvas.
 - The preserved artwork module is JavaScript behind a typed boundary. Other application code and the server schema use strict TypeScript.
 - Public multiplayer, server operations, abuse controls and production load acceptance remain future work.
+
+## Building workshop
+
+After joining, use **Add building** to choose purpose, shape, height, chimney stacks, service balcony and an animated facade display. The workshop renders the configuration before **Choose location** activates its ghost. Click revealed empty ground to place one building; Escape/right-click cancels. **City** contains camera, network and session controls; the bottom of the canvas stays clear. Appearance settings are optional in existing saves and persist separately from simulation entities.
