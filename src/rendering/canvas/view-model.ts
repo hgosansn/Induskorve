@@ -106,24 +106,32 @@ export function projectPlacement(
     links: projected.links.filter((l) => l.from.id === id || l.to.id === id),
   };
 }
-export function projectWorld(world: WorldSnapshot): RenderWorld {
+export function projectWorld(
+  world: WorldSnapshot,
+  previous?: RenderWorld,
+): RenderWorld {
   const appearances = new Map(world.appearances.map((a) => [a.buildingId, a]));
   const byId = new Map(
     world.buildings.map((b) => {
       const appearance = appearances.get(b.id);
-      return [
-        b.id,
-        {
-          ...b,
-          stock:
-            world.economy?.stockpiles.find((s) => s.buildingId === b.id)
-              ?.metal ?? 0,
-          h: appearance?.height ?? 35,
-          variant: appearance?.seed ?? 0.5,
-          adImage: appearance?.billboard,
-          design: appearance?.design,
-        },
-      ] as const;
+      const next: RenderBuilding = {
+        ...b,
+        stock:
+          world.economy?.stockpiles.find((s) => s.buildingId === b.id)?.metal ??
+          0,
+        h: appearance?.height ?? 35,
+        variant: appearance?.seed ?? 0.5,
+        adImage: appearance?.billboard,
+        design: appearance?.design,
+      };
+      const old = previous?.buildings.get(tileKey(b.x, b.y));
+      const unchanged =
+        old &&
+        Object.keys(next).length === Object.keys(old).length &&
+        (Object.keys(next) as (keyof RenderBuilding)[]).every((k) =>
+          Object.is(next[k], old[k]),
+        );
+      return [b.id, unchanged ? old : next] as const;
     }),
   );
   const networks = calculateNetworks(

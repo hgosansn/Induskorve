@@ -1,3 +1,4 @@
+import { createCanvasLoop } from './frame-loop';
 import type { BuildingDraft } from '../../domain/city/model';
 import { createArtwork } from './artwork.js';
 import { advanceWalkers, syncWalkers } from './pedestrians';
@@ -61,7 +62,7 @@ export function createCityScene(
   };
   let drag: { x: number; y: number; px: number; py: number } | null = null;
   let moved = false;
-  let raf = 0;
+  let invalidate: (interactive?: boolean) => void = () => {};
   let last = 0;
   let disposed = false;
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -95,8 +96,10 @@ export function createCityScene(
     frame.dpr = Math.min(devicePixelRatio || 1, 2);
     canvas.width = Math.round(frame.W * frame.dpr);
     canvas.height = Math.round(frame.H * frame.dpr);
+    invalidate();
   };
   const home = () => {
+    invalidate();
     frame.panX = frame.panY = 0;
     frame.zoom = Math.max(
       0.35,
@@ -105,8 +108,9 @@ export function createCityScene(
   };
   const update = (state: SceneState) => {
     if (source.world !== state.world) {
-      frame = { ...frame, ...projectWorld(state.world) };
-      artwork.clearCaches();
+      frame = { ...frame, ...projectWorld(state.world, frame) };
+      if (source.world.appearances !== state.world.appearances)
+        artwork.clearCaches();
     }
     frame.walkers = syncWalkers(frame.walkers, state.world.citizens, frame);
     frame.citizen =
@@ -120,6 +124,7 @@ export function createCityScene(
     frame.layer = state.layer;
     canvas.style.cursor = state.tool === 'inspect' ? 'grab' : 'crosshair';
     source = state;
+    invalidate();
   };
   canvas.addEventListener(
     'pointerdown',
@@ -140,6 +145,7 @@ export function createCityScene(
     (e) => {
       const p = coordinates(e);
       frame.hover = unproject(p.x, p.y);
+      if (drag || frame.mode !== 'inspect') invalidate(true);
       if (drag) {
         const dx = p.x - drag.x,
           dy = p.y - drag.y;
@@ -172,6 +178,7 @@ export function createCityScene(
     'pointerleave',
     () => {
       frame.hover = null;
+      invalidate();
     },
     { signal },
   );
@@ -195,6 +202,7 @@ export function createCityScene(
       e.preventDefault();
       drag = null;
       frame.hover = null;
+      invalidate();
       events.cancel();
     },
     { signal },
@@ -203,6 +211,7 @@ export function createCityScene(
     'wheel',
     (e) => {
       e.preventDefault();
+      invalidate(true);
       frame.zoom = Math.max(
         0.35,
         Math.min(3.5, frame.zoom * Math.exp(-e.deltaY * 0.001)),
@@ -216,6 +225,7 @@ export function createCityScene(
       if (e.key === 'Escape') {
         drag = null;
         frame.hover = null;
+        invalidate();
         events.cancel();
       }
     },
@@ -255,27 +265,22 @@ export function createCityScene(
       advanceWalkers(frame.walkers, frame, dt);
     }
     artwork.draw(frame);
-    raf = requestAnimationFrame(render);
   };
-  const visibility = () => {
-    cancelAnimationFrame(raf);
-    if (!document.hidden) {
-      last = 0;
-      raf = requestAnimationFrame(render);
-    }
-  };
-  document.addEventListener('visibilitychange', visibility, { signal });
-  raf = requestAnimationFrame(render);
+  const loop = createCanvasLoop(canvas, render, () => !reduceMotion.matches);
+  invalidate = loop.invalidate;
+  reduceMotion.addEventListener('change', () => invalidate(), { signal });
   return {
     update,
     home,
     zoom(direction) {
+      invalidate(true);
       frame.zoom = Math.max(
         0.35,
         Math.min(3.5, frame.zoom * (direction === 1 ? 1.2 : 1 / 1.2)),
       );
     },
     findCitizen() {
+      invalidate(true);
       const w = frame.walkers.find((w) => w.person?.id === source.citizenId);
       if (w) {
         const p = iso(w.x, w.y);
@@ -288,7 +293,7 @@ export function createCityScene(
       disposed = true;
       controller.abort();
       observer.disconnect();
-      cancelAnimationFrame(raf);
+      loop.dispose();
       artwork.dispose();
     },
   };

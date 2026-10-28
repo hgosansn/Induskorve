@@ -2,10 +2,7 @@ import type { Palette } from '../palette';
 import type { RenderFrame } from './view-model';
 import { createGeometry, iso } from './geometry';
 
-export function createTerrainRenderer(
-  ctx: CanvasRenderingContext2D,
-  p: Palette,
-) {
+function createTerrainPainter(ctx: CanvasRenderingContext2D, p: Palette) {
   const { polygon, line, glow } = createGeometry(ctx, p);
   return ({ terrain, buildings, net, grid, study }: RenderFrame) => {
     for (const { x, y, exposure } of [...terrain.values()].sort(
@@ -106,5 +103,47 @@ export function createTerrainRenderer(
           0.1,
         );
     }
+  };
+}
+
+// Terrain, shadows and ground lighting change with topology/activity or camera, not time.
+export function createTerrainRenderer(
+  ctx: CanvasRenderingContext2D,
+  p: Palette,
+) {
+  const surface = document.createElement('canvas');
+  const target = surface.getContext('2d')!;
+  const paint = createTerrainPainter(target, p);
+  let previous: unknown[] = [];
+  return (frame: RenderFrame) => {
+    const keys = [
+      frame.W,
+      frame.H,
+      frame.dpr,
+      frame.zoom,
+      frame.panX,
+      frame.panY,
+      frame.terrain,
+      frame.buildings,
+      frame.net,
+      frame.grid,
+      frame.study?.exploded,
+    ];
+    if (keys.some((key, i) => key !== previous[i])) {
+      previous = keys;
+      surface.width = Math.round(frame.W * frame.dpr);
+      surface.height = Math.round(frame.H * frame.dpr);
+      target.setTransform(frame.dpr, 0, 0, frame.dpr, 0, 0);
+      target.translate(
+        frame.W * 0.53 + frame.panX,
+        frame.H * 0.53 + frame.panY,
+      );
+      target.scale(frame.zoom, frame.zoom);
+      paint(frame);
+    }
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(surface, 0, 0);
+    ctx.restore();
   };
 }

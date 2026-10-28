@@ -449,3 +449,64 @@ test('modular city renders at district and close zoom with no storage rewrite', 
   ).toBe(saved);
   expect(errors).toEqual([]);
 });
+
+test('canvases stop repainting when reduced-motion idle or covered by a dialog', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const counters = { city: 0, preview: 0 };
+    Object.assign(window, { renderCounters: counters });
+    const original = CanvasRenderingContext2D.prototype.fillRect;
+    CanvasRenderingContext2D.prototype.fillRect = function (...args) {
+      if (this.canvas.matches('main > canvas')) counters.city++;
+      if (
+        this.canvas.getAttribute('aria-label') === 'Configured building preview'
+      )
+        counters.preview++;
+      return original.apply(this, args);
+    };
+  });
+  const counts = () =>
+    page.evaluate(
+      () =>
+        (
+          window as unknown as Window & {
+            renderCounters: { city: number; preview: number };
+          }
+        ).renderCounters,
+    );
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await expect.poll(async () => (await counts()).city).toBeGreaterThan(0);
+  // Let resize and initial DOM mutations settle before observing an idle interval.
+  await page.waitForTimeout(200);
+  const idle = await counts();
+  await page.waitForTimeout(250);
+  expect(await counts()).toEqual(idle);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await expect
+    .poll(async () => (await counts()).city)
+    .toBeGreaterThan(idle.city);
+  await page.getByRole('button', { name: 'City', exact: true }).click();
+  await page.waitForTimeout(200);
+  const covered = await counts();
+  await page.waitForTimeout(250);
+  expect((await counts()).city).toBe(covered.city);
+  await page.getByRole('button', { name: 'Design atlas', exact: true }).click();
+  await expect.poll(async () => (await counts()).preview).toBeGreaterThan(0);
+  const preview = await counts();
+  await expect
+    .poll(async () => (await counts()).preview)
+    .toBeGreaterThan(preview.preview);
+  expect((await counts()).city).toBe(covered.city);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.waitForTimeout(200);
+  const still = await counts();
+  await page.waitForTimeout(250);
+  expect(await counts()).toEqual(still);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect
+    .poll(async () => (await counts()).city)
+    .toBeGreaterThan(still.city);
+});

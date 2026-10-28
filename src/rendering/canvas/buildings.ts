@@ -18,7 +18,19 @@ export function createBuildingRenderer(
   ctx: CanvasRenderingContext2D,
   p: Palette,
 ) {
-  const g = createGeometry(ctx, p);
+  const output = ctx;
+  const outputGeometry = createGeometry(output, p);
+  let g = outputGeometry;
+  const sprites = new WeakMap<
+    RenderBuilding,
+    {
+      key: string;
+      parts: Map<
+        string,
+        { image: HTMLCanvasElement; x: number; y: number; w: number; h: number }
+      >;
+    }
+  >();
   const drawHall = createModularHallRenderer(ctx, p);
   const ordered = new WeakMap<RenderBuilding, AssemblyPart[]>();
   return (
@@ -232,18 +244,6 @@ export function createBuildingRenderer(
             p.ink,
             p.ink,
           ]);
-          if (active)
-            for (let i = 0; i < (part.kind === 'scrubber' ? 1 : 3); i++) {
-              const q = (time * 0.14 + i / 3 + b.variant) % 1;
-              const pt = project(x + w / 2 + q, y + d / 2, top + 0.4 + q * 4);
-              ctx.save();
-              ctx.globalAlpha *= (1 - q) * 0.12;
-              ctx.fillStyle = p.muted;
-              ctx.beginPath();
-              ctx.ellipse(...pt, 1 + q * 4, 1 + q * 2, -0.4, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.restore();
-            }
           break;
         }
         case 'skylights':
@@ -306,19 +306,6 @@ export function createBuildingRenderer(
           break;
         case 'gantry': {
           for (const solid of part.solids) box(solid, g.steel);
-          const xx =
-            x + w / 2 + (active ? Math.sin(time * 0.45) * (w / 2 - 1) : 0);
-          box(volume(xx - 0.4, y + 0.3, top - 0.75, 0.8, 1.2, 0.35), [
-            p.materials,
-            p.steel,
-            p.surface,
-          ]);
-          line(
-            [xx, y + d / 2, top - 0.75],
-            [xx, y + d / 2, z + 2.6],
-            p.materials,
-            0.5,
-          );
           break;
         }
         case 'catwalk':
@@ -368,6 +355,90 @@ export function createBuildingRenderer(
           break;
       }
     }
+    function drawEffects(part: AssemblyPart) {
+      const { x, y, z, w, d, h } = part.volume,
+        top = z + h;
+      if (part.kind === 'stack' || part.kind === 'scrubber') {
+        if (active)
+          for (let i = 0; i < (part.kind === 'scrubber' ? 1 : 3); i++) {
+            const q = (time * 0.14 + i / 3 + b.variant) % 1;
+            const pt = project(x + w / 2 + q, y + d / 2, top + 0.4 + q * 4);
+            ctx.save();
+            ctx.globalAlpha *= (1 - q) * 0.12;
+            ctx.fillStyle = p.muted;
+            ctx.beginPath();
+            ctx.ellipse(...pt, 1 + q * 4, 1 + q * 2, -0.4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+      } else if (part.kind === 'gantry') {
+        const xx =
+          x + w / 2 + (active ? Math.sin(time * 0.45) * (w / 2 - 1) : 0);
+        box(volume(xx - 0.4, y + 0.3, top - 0.75, 0.8, 1.2, 0.35), [
+          p.materials,
+          p.steel,
+          p.surface,
+        ]);
+        line(
+          [xx, y + d / 2, top - 0.75],
+          [xx, y + d / 2, z + 2.6],
+          p.materials,
+          0.5,
+        );
+      }
+    }
+    const resolution = Math.max(2, Math.min(8, Math.ceil(options.zoom * 1.5)));
+    const spriteKey = `${active}/${fine}/${resolution}`;
+    let cached = sprites.get(b);
+    if (!cached || cached.key !== spriteKey) {
+      cached = { key: spriteKey, parts: new Map() };
+      sprites.set(b, cached);
+    }
+    function paintPart(part: AssemblyPart) {
+      if (part.kind === 'hall') {
+        drawPart(part);
+        return;
+      }
+      let sprite = cached!.parts.get(part.id);
+      if (!sprite) {
+        const v = part.volume;
+        const corners = [0, 1].flatMap((x) =>
+          [0, 1].flatMap((y) =>
+            [0, 1].map((z) =>
+              project(v.x + x * v.w, v.y + y * v.d, v.z + z * v.h),
+            ),
+          ),
+        );
+        const x = Math.min(...corners.map((p) => p[0])) - 4,
+          y = Math.min(...corners.map((p) => p[1])) - 4;
+        const w = Math.max(...corners.map((p) => p[0])) - x + 4,
+          h = Math.max(...corners.map((p) => p[1])) - y + 4;
+        const image = document.createElement('canvas');
+        image.width = Math.ceil(w * resolution);
+        image.height = Math.ceil(h * resolution);
+        const target = image.getContext('2d')!;
+        target.scale(resolution, resolution);
+        target.translate(-x, -y);
+        ctx = target;
+        g = createGeometry(target, p);
+        try {
+          drawPart(part);
+        } finally {
+          ctx = output;
+          g = outputGeometry;
+        }
+        sprite = {
+          image,
+          x,
+          y,
+          w: image.width / resolution,
+          h: image.height / resolution,
+        };
+        cached!.parts.set(part.id, sprite);
+      }
+      ctx.drawImage(sprite.image, sprite.x, sprite.y, sprite.w, sprite.h);
+      drawEffects(part);
+    }
     for (const part of parts) {
       ctx.save();
       ctx.translate(0, -assemblyOffset(part.layer, study));
@@ -377,7 +448,7 @@ export function createBuildingRenderer(
         (study?.focus && study.focus !== 'all' && study.focus !== part.layer)
       )
         ctx.globalAlpha *= 0.12;
-      drawPart(part);
+      paintPart(part);
       // Short nozzles reach the bay boundary where pipe ports terminate.
       for (const port of a.ports.filter((port) => port.part === part.id)) {
         const v = part.volume,

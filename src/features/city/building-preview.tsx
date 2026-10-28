@@ -1,3 +1,4 @@
+import { createCanvasLoop } from '../../rendering/canvas/frame-loop';
 import { useEffect, useRef } from 'react';
 import type { BuildingDraft } from '../../domain/city/model';
 import { createArtwork } from '../../rendering/canvas/artwork.js';
@@ -61,9 +62,9 @@ export function BuildingPreview({
       ),
     );
     const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-    let raf = 0;
     const draw = (time: number) => {
-      const rect = el.getBoundingClientRect(),
+      // Layout size is stable during the dialog opening transform.
+      const rect = { width: el.clientWidth, height: el.clientHeight },
         dpr = Math.min(devicePixelRatio, 2);
       if (
         el.width !== Math.round(rect.width * dpr) ||
@@ -95,17 +96,16 @@ export function BuildingPreview({
         walkers: [],
         study,
       });
-      raf = requestAnimationFrame(draw);
     };
-    const visibility = () => {
-      cancelAnimationFrame(raf);
-      if (!document.hidden) raf = requestAnimationFrame(draw);
-    };
-    document.addEventListener('visibilitychange', visibility);
-    raf = requestAnimationFrame(draw);
+    const loop = createCanvasLoop(el, draw, () => !reduced.matches);
+    const resize = new ResizeObserver(() => loop.invalidate());
+    resize.observe(el);
+    const preference = () => loop.invalidate();
+    reduced.addEventListener('change', preference);
     return () => {
-      cancelAnimationFrame(raf);
-      document.removeEventListener('visibilitychange', visibility);
+      loop.dispose();
+      resize.disconnect();
+      reduced.removeEventListener('change', preference);
       art.dispose();
     };
   }, [draft, active, study, stock]);
