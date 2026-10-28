@@ -3,7 +3,8 @@ import { readPalette } from '../palette';
 import { createBuildingRenderer } from './buildings';
 import { createTerrainRenderer } from './terrain-art';
 import { iso } from './geometry';
-import { attachment, roofHeight } from './building-layout';
+import { attachment } from './building-layout';
+import { KIT_SIZE, KIT_Z } from '../assembly/model';
 // Canvas orchestration and procedural adverts. Building assemblies and terrain are typed renderers.
 // Its typed boundary is artwork.d.ts; camera/input/lifecycle live in scene.ts.
 export function createArtwork(ctx) {
@@ -66,16 +67,12 @@ export function createArtwork(ctx) {
       ctx.save();
       if (l.kind === 'heat') {
         ctx.globalAlpha = dim ? 0.1 : 0.85;
-        const start = iso(
-          l.from.x + 0.82,
-          l.from.y + 0.55,
-          roofHeight(l.from) + 7,
-        );
-        const end = iso(l.to.x + 0.22, l.to.y + 0.25, roofHeight(l.to) + 3);
-        const lowA = iso(l.from.x + 0.82, l.from.y + 0.55, 5);
-        const lowB = iso(l.to.x + 0.22, l.to.y + 0.25, 5);
-        line(start, lowA, P.production, related ? 3 : 2);
-        line(lowB, end, P.production, related ? 3 : 2);
+        const from = attachment(l.from, 'heat'),
+          to = attachment(l.to, 'heat');
+        const lowA = iso(from.x, from.y, 3);
+        const lowB = iso(to.x, to.y, 3);
+        line(a, lowA, P.production, related ? 3 : 2);
+        line(lowB, b, P.production, related ? 3 : 2);
         line(lowA, lowB, P.production, related ? 3 : 2);
       } else if (l.kind === 'power') {
         // A continuous suspended wire sags under its weight between roof insulators.
@@ -293,7 +290,7 @@ export function createArtwork(ctx) {
       0,
       0,
     );
-    ctx.globalAlpha = on ? 0.85 : 0.15;
+    ctx.globalAlpha *= on ? 0.85 : 0.15;
     ctx.drawImage(entry.canvas, 0, 0);
     ctx.strokeStyle = on ? P['concrete'] + '77' : P['steel'];
     ctx.lineWidth = 2;
@@ -302,15 +299,27 @@ export function createArtwork(ctx) {
   }
   function building(b, t, ghost = false) {
     const on = net.get(b)?.active ?? (ghost || b.on);
-    drawBuilding(b, on, t, { zoom, ghost, selected: selected === b, study });
-    if (
-      (b.design?.display === 'animated' || b.adImage) &&
-      !study?.exploded &&
-      (!study || study.focus === 'all' || study.focus === 'shell')
-    ) {
-      const h = roofHeight(b);
-      drawAdvert(b, t, b.x + 0.88, b.y + 0.2, 0.48, 8, Math.max(10, h - 7), on);
-    }
+    drawBuilding(b, on, t, {
+      zoom,
+      ghost,
+      selected: selected === b,
+      study,
+      facade:
+        b.design?.display === 'animated' || b.adImage
+          ? (v) => {
+              drawAdvert(
+                b,
+                t,
+                b.x + (v.x + v.w) / KIT_SIZE,
+                b.y + (v.y + 0.5) / KIT_SIZE,
+                (v.d - 1) / KIT_SIZE,
+                (v.z + 0.4) * KIT_Z,
+                (v.h - 0.8) * KIT_Z,
+                on,
+              );
+            }
+          : undefined,
+    });
   }
   function draw(frame) {
     ({

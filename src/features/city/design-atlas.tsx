@@ -18,6 +18,8 @@ import {
   type BuildingModule,
 } from '../../domain/city/model';
 import { MODULES } from '../../domain/city/catalog';
+import { composeBuilding } from '../../rendering/assembly/compose';
+import { validateAssembly } from '../../rendering/assembly/model';
 import {
   ASSEMBLY_LAYERS,
   type AssemblyLayer,
@@ -27,17 +29,17 @@ const families: Record<BuildingKind, { name: string; description: string }> = {
   power: {
     name: 'Power station',
     description:
-      'Cooling towers rise above the turbine gallery. Yellow insulators mark the electrical connection; the copper radiator recovers heat.',
+      'The generator hall connects to a ground-mounted cooling cell. Extra generation and heat recovery each have a separate equipment bay.',
   },
   factory: {
     name: 'Foundry',
     description:
-      'A sawtooth roof lights the production hall. Hot furnace throats, braced walls and exhaust stacks reveal the working process.',
+      'The furnace belongs inside the melting hall. A side duct carries fumes to the extraction bay; rooflights stay clear of machinery.',
   },
   warehouse: {
     name: 'Freight hub',
     description:
-      'Recessed loading shutters sit below freight terraces. A gantry adds handling capacity; stored metal forms stacks on the apron.',
+      'Loading doors open onto a clear approach. Stock occupies a marked apron under the gantry; solar panels stay on a dedicated roof rack.',
   },
 };
 const layerDescriptions: Record<AssemblyLayer, string> = {
@@ -47,11 +49,11 @@ const layerDescriptions: Record<AssemblyLayer, string> = {
   shell:
     'The structural skin: gallery, production hall or stepped freight terraces.',
   machinery:
-    'Working cooling towers, furnaces and stockpiles establish the purpose of each building.',
+    'Ground-supported cooling, extraction and stored inventory, each in its own bay.',
   modules:
     'Optional equipment changes the silhouette and the corresponding game statistics.',
   services:
-    'The control core, access balcony and network hardware connect people and machinery.',
+    'Controls, grid hardware and a ladder provide operation, connection and roof access.',
 };
 export function DesignAtlas() {
   const [kind, setKind] = useState<BuildingKind>('power');
@@ -63,6 +65,7 @@ export function DesignAtlas() {
   const [exploded, setExploded] = useState(false);
   const [active, setActive] = useState(true);
   const [stock, setStock] = useState(true);
+  const [partId, setPartId] = useState('all');
   const draft = {
     ...defaultDraft,
     kind,
@@ -74,6 +77,18 @@ export function DesignAtlas() {
       display: 'none' as const,
     },
   };
+  const assembly = composeBuilding({
+    type: kind,
+    h: draft.height,
+    variant: draft.seed,
+    design: draft.design,
+    modules,
+    stock: kind === 'warehouse' && stock ? 150 : 0,
+  });
+  const part = assembly.parts.find((p) => p.id === partId);
+  const mount = assembly.mounts.find((m) => m.id === part?.mount);
+  const support = assembly.parts.find((p) => p.id === mount?.support);
+  const fitErrors = validateAssembly(assembly);
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -92,7 +107,7 @@ export function DesignAtlas() {
               draft={draft}
               active={active}
               stock={kind === 'warehouse' && stock ? 150 : 0}
-              study={{ focus, exploded }}
+              study={{ focus, exploded, part: part?.id }}
               className="h-[38dvh] min-h-64 lg:h-[58dvh]"
             />
             <div className="mt-3 flex flex-wrap gap-2">
@@ -129,6 +144,7 @@ export function DesignAtlas() {
               onValueChange={(v) => {
                 if (v) {
                   setKind(v as BuildingKind);
+                  setPartId('all');
                   setModules(
                     (Object.keys(MODULES) as BuildingModule[]).filter(
                       (m) => moduleKinds[m] === v,
@@ -149,6 +165,48 @@ export function DesignAtlas() {
                 {families[kind].description}
               </p>
             </div>
+            <div className="space-y-2 border-t border-border pt-4">
+              <Label htmlFor="atlas-part">Why is this part here?</Label>
+              <select
+                id="atlas-part"
+                className="w-full border border-border bg-card p-2 text-sm"
+                value={part ? part.id : 'all'}
+                onChange={(e) => {
+                  setPartId(e.target.value);
+                  setFocus('all');
+                }}
+              >
+                <option value="all">Complete assembly</option>
+                {assembly.parts.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label}
+                    {p.kind === 'cargo' ? ` ${p.id.slice(6)}` : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {part?.purpose ??
+                  'Each part occupies a reserved bay and attaches to a support. Select a part to isolate it and read its job.'}
+              </p>
+              {part && (
+                <p className="text-xs text-muted-foreground">
+                  {support
+                    ? `Mounted on: ${support.label} · ${mount?.face === 'front' ? 'facade' : 'top surface'}`
+                    : 'Root support: ground'}
+                </p>
+              )}
+              <p
+                className={
+                  fitErrors.length
+                    ? 'text-xs text-destructive'
+                    : 'text-xs text-muted-foreground'
+                }
+              >
+                {fitErrors.length
+                  ? fitErrors.join(' · ')
+                  : 'Fit checked: supports, equipment volumes, access lanes and internal pipe routes.'}
+              </p>
+            </div>
             <fieldset>
               <legend className="mb-2 text-sm">Isolate a layer</legend>
               <ToggleGroup
@@ -157,7 +215,10 @@ export function DesignAtlas() {
                 aria-label="Assembly layer"
                 className="flex-wrap justify-start"
                 onValueChange={(v) => {
-                  if (v) setFocus(v as AssemblyLayer);
+                  if (v) {
+                    setFocus(v as AssemblyLayer);
+                    setPartId('all');
+                  }
                 }}
               >
                 {ASSEMBLY_LAYERS.map((v) => (

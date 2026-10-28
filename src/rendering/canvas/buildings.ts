@@ -1,32 +1,23 @@
-import { hasModule } from '../../domain/city/catalog';
 import type { Palette } from '../palette';
 import { createGeometry, iso, type Material } from './geometry';
-import {
-  attachment,
-  assemblyOffset,
-  roofHeight,
-  type AssemblyLayer,
-  type BuildingStudy,
-} from './building-layout';
+import { assemblyOffset, type BuildingStudy } from './building-layout';
 import type { RenderBuilding } from './view-model';
+import { buildingAssembly } from '../assembly/compose';
+import { assemblyDrawOrder } from '../assembly/draw-order';
+import {
+  KIT_SIZE,
+  KIT_Z,
+  volume,
+  type AssemblyPart,
+  type Volume,
+} from '../assembly/model';
 
 export function createBuildingRenderer(
   ctx: CanvasRenderingContext2D,
   p: Palette,
 ) {
   const g = createGeometry(ctx, p);
-  const {
-    box,
-    taper,
-    polygon,
-    line,
-    lamp,
-    glow,
-    railing,
-    concrete,
-    steel,
-    dark,
-  } = g;
+  const ordered = new WeakMap<RenderBuilding, AssemblyPart[]>();
   return (
     b: RenderBuilding,
     active: boolean,
@@ -36,391 +27,470 @@ export function createBuildingRenderer(
       ghost?: boolean;
       selected?: boolean;
       study?: BuildingStudy;
+      facade?: (surface: Volume) => void;
     },
   ) => {
-    const { x, y } = b,
-      h = roofHeight(b),
+    const a = buildingAssembly(b),
+      study = options.study,
       fine = options.zoom > 1.15;
+    let parts = ordered.get(b);
+    if (!parts) {
+      parts = assemblyDrawOrder(a);
+      ordered.set(b, parts);
+    }
     const accent =
       b.type === 'power'
         ? p.power
-        : b.type === 'warehouse'
-          ? p.materials
-          : p.production;
-    const trim: Material = [accent, p['concrete-shadow'], p.surface];
-    const shape = b.design?.shape ?? (b.variant > 0.67 ? 'tower' : 'stepped');
-    function layer(name: AssemblyLayer, draw: () => void) {
+        : b.type === 'factory'
+          ? p.production
+          : p.materials;
+    const project = (x: number, y: number, z: number) =>
+      iso(b.x + x / KIT_SIZE, b.y + y / KIT_SIZE, z * KIT_Z);
+    const box = (v: Volume, m: Material = g.steel) =>
+      g.box(
+        b.x + v.x / KIT_SIZE,
+        b.y + v.y / KIT_SIZE,
+        v.w / KIT_SIZE,
+        v.d / KIT_SIZE,
+        v.z * KIT_Z,
+        v.h * KIT_Z,
+        m,
+      );
+    const line = (from: number[], to: number[], color = p.edge, width = 0.5) =>
+      g.line(
+        project(from[0]!, from[1]!, from[2]!),
+        project(to[0]!, to[1]!, to[2]!),
+        color,
+        width,
+      );
+    const taper = (
+      v: Volume,
+      bottom: number,
+      top: number,
+      m: Material = g.concrete,
+    ) =>
+      g.taper(
+        b.x + (v.x + v.w / 2) / KIT_SIZE,
+        b.y + (v.y + v.d / 2) / KIT_SIZE,
+        bottom / KIT_SIZE,
+        top / KIT_SIZE,
+        v.z * KIT_Z,
+        v.h * KIT_Z,
+        m,
+      );
+    const face = (pts: number[][], color: string) =>
+      g.polygon(
+        pts.map((q) => project(q[0]!, q[1]!, q[2]!)),
+        color,
+        p.edge,
+      );
+    const strip = (
+      x: number,
+      y: number,
+      z: number,
+      w: number,
+      color = accent,
+    ) => line([x, y, z], [x + w, y, z], active ? color : p.edge, 1);
+    const slab = (v: Volume, height = 0.2) => box({ ...v, h: height }, g.dark);
+    const onFace = (v: Volume, text: string) => {
+      if (!fine) return;
       ctx.save();
-      ctx.translate(0, -assemblyOffset(name, options.study));
-      if (options.ghost) ctx.globalAlpha *= 0.6;
-      if (
-        options.study?.focus !== undefined &&
-        options.study.focus !== 'all' &&
-        options.study.focus !== name
-      )
-        ctx.globalAlpha *= 0.12;
-      draw();
+      ctx.translate(...project(v.x + 0.5, v.y + v.d + 0.005, v.z + v.h - 0.7));
+      ctx.transform(1, 0.5, 0, 1, 0, 0);
+      ctx.font = 'bold 2.5px monospace';
+      ctx.fillStyle = p.concrete;
+      ctx.fillText(text, 0, 0);
       ctx.restore();
-    }
-    if (options.study?.exploded) {
-      ctx.save();
-      ctx.globalAlpha = 0.3;
-      ctx.setLineDash([1, 3]);
-      for (const [xx, yy] of [
-        [0.06, 0.06],
-        [0.94, 0.94],
-      ])
-        line(
-          iso(x + xx!, y + yy!, 0),
-          iso(x + xx!, y + yy!, h + 96),
-          p.edge,
-          0.5,
-        );
-      ctx.restore();
-    }
-    layer('foundation', () => {
-      box(x + 0.03, y + 0.03, 0.94, 0.94, 0, 4, dark);
-      box(x + 0.09, y + 0.09, 0.82, 0.82, 4, 2, steel);
-      for (const xx of [0.14, 0.83]) {
-        box(x + xx, y + 0.88, 0.05, 0.08, 6, 1, trim);
-        if (active) lamp(iso(x + xx, y + 0.93, 7), accent, true, 1);
-      }
-      if (active && b.type === 'factory')
-        glow(iso(x + 0.5, y + 0.8, 3), p.production, 19, 0.24);
-    });
-    layer('shell', () => {
-      if (b.type === 'power') {
-        // Long turbine gallery: opaque wall panels below a glazed clerestory.
-        box(x + 0.14, y + 0.22, 0.72, 0.59, 6, h - 5, steel);
-        box(x + 0.1, y + 0.18, 0.8, 0.66, h, 3, concrete);
-        for (let i = 0; i < 5; i++) {
-          const xx = x + 0.17 + i * 0.135;
-          box(xx, y + 0.79, 0.035, 0.09, 6, h - 6, concrete);
-          line(
-            iso(xx + 0.05, y + 0.815, h - 4),
-            iso(xx + 0.1, y + 0.815, h - 4),
-            active ? p.power : p.ink,
-            2,
-          );
-        }
-        if (fine)
-          for (let z = 11; z < h - 6; z += 4)
+    };
+    function drawPart(part: AssemblyPart) {
+      const v = part.volume,
+        { x, y, z, w, d, h } = v,
+        top = z + h;
+      switch (part.kind) {
+        case 'foundation':
+          box(v, g.dark);
+          line([x, y + d, top], [x + w, y + d, top], p['concrete-shadow'], 0.8);
+          break;
+        case 'hall': {
+          box(v, b.type === 'factory' ? g.dark : g.steel);
+          // Roof cap is contained in the structural envelope, with no floating lip.
+          box(volume(x, y, top - 0.2, w, d, 0.2), g.concrete);
+          for (let xx = x + 0.4; xx < x + w - 0.1; xx += 1.4) {
             line(
-              iso(x + 0.2, y + 0.825, z),
-              iso(x + 0.8, y + 0.825, z),
-              p.edge,
-              0.4,
+              [xx, y + d, z + 0.3],
+              [xx, y + d, top - 0.3],
+              p['concrete-shadow'],
+              0.7,
             );
-      } else if (b.type === 'factory') {
-        // Recessed furnace mouth and ribbed shell; sawtooth glazing is structural.
-        box(x + 0.13, y + 0.15, 0.74, 0.67, 6, h - 5, dark);
-        for (let i = 0; i < 3; i++) {
-          const yy = y + 0.16 + i * 0.21;
-          polygon(
-            [
-              iso(x + 0.12, yy, h + 1),
-              iso(x + 0.87, yy, h + 1),
-              iso(x + 0.87, yy + 0.17, h + 8),
-              iso(x + 0.12, yy + 0.17, h + 8),
-            ],
-            p.concrete,
-            p.edge,
-          );
-          polygon(
-            [
-              iso(x + 0.12, yy + 0.17, h + 1),
-              iso(x + 0.87, yy + 0.17, h + 1),
-              iso(x + 0.87, yy + 0.17, h + 7),
-              iso(x + 0.12, yy + 0.17, h + 7),
-            ],
-            p.ink,
-            p.edge,
-          );
-          line(
-            iso(x + 0.18, yy + 0.172, h + 4),
-            iso(x + 0.79, yy + 0.172, h + 4),
-            active ? p.production : p.steel,
-            1,
-          );
-        }
-        for (const xx of [0.13, 0.48, 0.83])
-          box(x + xx, y + 0.8, 0.06, 0.12, 6, h - 9, steel);
-        polygon(
-          [
-            iso(x + 0.24, y + 0.83, 7),
-            iso(x + 0.72, y + 0.83, 7),
-            iso(x + 0.66, y + 0.83, h - 4),
-            iso(x + 0.3, y + 0.83, h - 4),
-          ],
-          p.ink,
-          p.edge,
-        );
-        for (let i = 0; i < 4; i++)
-          line(
-            iso(x + 0.31 + i * 0.09, y + 0.835, 10),
-            iso(x + 0.31 + i * 0.09, y + 0.835, h - 8),
-            active ? p.production : p.surface,
-            2.2,
-          );
-        if (active) glow(iso(x + 0.5, y + 0.84, 13), p.production, 12, 0.32);
-      } else {
-        // Stepped freight terraces, strong overhang and recessed shutter wall.
-        box(x + 0.13, y + 0.13, 0.72, 0.62, 6, h - 2, steel);
-        box(x + 0.1, y + 0.1, 0.8, 0.69, h + 4, 3, concrete);
-        box(x + 0.19, y + 0.16, 0.58, 0.35, h + 7, 7, steel);
-        box(x + 0.15, y + 0.13, 0.66, 0.42, h + 14, 2, concrete);
-        for (let i = 0; i < 3; i++) {
-          const xx = x + 0.19 + i * 0.22;
-          polygon(
-            [
-              iso(xx, y + 0.76, 7),
-              iso(xx + 0.16, y + 0.76, 7),
-              iso(xx + 0.16, y + 0.76, h + 1),
-              iso(xx, y + 0.76, h + 1),
-            ],
-            p.ink,
-            p.edge,
-          );
-          line(
-            iso(xx, y + 0.765, h + 1),
-            iso(xx + 0.16, y + 0.765, h + 1),
-            active ? p.materials : p.steel,
-            1.3,
-          );
-          if (fine)
-            for (let z = 10; z < h; z += 3)
+          }
+          if (b.type === 'warehouse') {
+            for (let i = 0; i < 3; i++) {
+              const xx = x + 1.1 + i * 3;
+              face(
+                [
+                  [xx, y + d + 0.005, z + 0.15],
+                  [xx + 2, y + d + 0.005, z + 0.15],
+                  [xx + 2, y + d + 0.005, top - 0.5],
+                  [xx, y + d + 0.005, top - 0.5],
+                ],
+                p.ink,
+              );
+              strip(xx, y + d + 0.01, top - 0.45, 2);
+              if (fine)
+                for (let zz = z + 0.7; zz < top - 0.6; zz += 0.55)
+                  line(
+                    [xx + 0.1, y + d + 0.015, zz],
+                    [xx + 1.9, y + d + 0.015, zz],
+                    p.steel,
+                    0.4,
+                  );
+            }
+          } else if (b.type === 'factory') {
+            const xx = x + 2;
+            face(
+              [
+                [xx, y + d + 0.005, z + 0.3],
+                [xx + 2, y + d + 0.005, z + 0.3],
+                [xx + 2, y + d + 0.005, z + 2.6],
+                [xx, y + d + 0.005, z + 2.6],
+              ],
+              p.ink,
+            );
+            for (let i = 0; i < 4; i++)
+              strip(
+                xx + 0.2,
+                y + d + 0.01,
+                z + 0.65 + i * 0.45,
+                1.6,
+                p.production,
+              );
+            if (active)
+              g.glow(project(xx + 1, y + d, z + 1.3), p.production, 8, 0.28);
+          } else {
+            for (let yy = y + 0.5; yy < y + d - 0.4; yy += 0.7)
               line(
-                iso(xx + 0.02, y + 0.765, z),
-                iso(xx + 0.14, y + 0.765, z),
-                p.steel,
+                [x + w + 0.005, yy, z + 0.6],
+                [x + w + 0.005, yy, top - 0.5],
+                p.edge,
                 0.5,
               );
-        }
-        railing(x + 0.14, y + 0.81, 0.71, h + 7);
-      }
-      if (fine) {
-        // Panel joints are disciplined repeats, not random facade greebles.
-        for (let i = 0; i < 4; i++)
-          line(
-            iso(x + 0.875, y + 0.19 + i * 0.13, 9),
-            iso(x + 0.875, y + 0.19 + i * 0.13, h - 2),
-            p.edge,
-            0.4,
+            strip(x + 0.7, y + d + 0.01, top - 0.7, w - 1.4);
+          }
+          onFace(
+            v,
+            b.type === 'power'
+              ? 'GEN 01'
+              : b.type === 'factory'
+                ? 'MELT 01'
+                : 'FREIGHT',
           );
+          options.facade?.(v);
+          break;
+        }
+        case 'control':
+          box(v, g.dark);
+          box(volume(x, y, top - 0.12, w, d, 0.12), g.steel);
+          for (let zz = z + 0.65; zz < top - 0.2; zz += 0.7)
+            strip(x + 0.2, y + d + 0.005, zz, w - 0.4, p.foreground);
+          break;
+        case 'cooler': {
+          slab(v, 0.35);
+          const core = volume(
+            x + 0.15,
+            y + 0.15,
+            z + 0.35,
+            w - 0.3,
+            d - 0.3,
+            h - 0.65,
+          );
+          taper({ ...core, h: core.h * 0.6 }, w * 0.44, w * 0.27);
+          taper(
+            { ...core, z: core.z + core.h * 0.6, h: core.h * 0.4 },
+            w * 0.27,
+            w * 0.4,
+          );
+          taper(
+            volume(x, y, top - 0.3, w, d, 0.3),
+            w * 0.44,
+            w * 0.44,
+            g.steel,
+          );
+          taper(volume(x, y, top - 0.02, w, d, 0.02), w * 0.31, w * 0.31, [
+            p.ink,
+            p.ink,
+            p.ink,
+          ]);
+          break;
+        }
+        case 'turbine':
+          slab(v, 0.3);
+          box(
+            volume(x + 0.15, y + 0.15, z + 0.3, w - 0.3, d - 0.3, h - 0.3),
+            g.concrete,
+          );
+          for (let yy = y + 0.4; yy < y + d - 0.3; yy += 0.35)
+            line(
+              [x + w - 0.14, yy, z + 0.7],
+              [x + w - 0.14, yy, top - 0.4],
+              p.ink,
+              0.7,
+            );
+          strip(x + 0.4, y + d - 0.145, top - 0.6, w - 0.8);
+          onFace(v, 'GEN 02');
+          break;
+        case 'exchanger':
+          slab(v, 0.25);
+          box(
+            volume(x + 0.15, y + 0.15, z + 0.25, w - 0.3, d - 0.3, h - 0.25),
+            g.dark,
+          );
+          for (let xx = x + 0.3; xx < x + w - 0.2; xx += 0.3)
+            line(
+              [xx, y + d - 0.14, z + 0.45],
+              [xx, y + d - 0.14, top - 0.15],
+              p.production,
+              0.7,
+            );
+          break;
+        case 'furnace':
+          slab(v, 0.3);
+          box(
+            volume(x + 0.15, y + 0.15, z + 0.3, w - 0.3, d - 0.3, h - 0.3),
+            g.dark,
+          );
+          strip(x + 0.5, y + d - 0.145, z + 1, w - 1, p.production);
+          strip(x + 0.5, y + d - 0.145, z + 1.6, w - 1, p.production);
+          onFace(v, 'MELT 02');
+          break;
+        case 'stack':
+        case 'scrubber': {
+          slab(v, 0.3);
+          if (part.kind === 'scrubber') {
+            taper(
+              volume(x, y, z + 0.3, w, d, h * 0.45),
+              w * 0.43,
+              w * 0.43,
+              g.steel,
+            );
+            for (const zz of [z + 0.5, z + h * 0.4])
+              taper(
+                volume(x, y, zz, w, d, 0.15),
+                w * 0.46,
+                w * 0.46,
+                g.concrete,
+              );
+          } else
+            box(
+              volume(x + 0.2, y + 0.2, z + 0.3, w - 0.4, d - 0.4, 1.5),
+              g.steel,
+            );
+          const start = part.kind === 'scrubber' ? z + 0.3 + h * 0.45 : z + 1.8;
+          taper(
+            volume(x, y, start, w, d, top - 0.25 - start),
+            w * 0.2,
+            w * 0.18,
+            g.concrete,
+          );
+          taper(
+            volume(x, y, top - 0.25, w, d, 0.25),
+            w * 0.23,
+            w * 0.23,
+            g.steel,
+          );
+          taper(volume(x, y, top - 0.01, w, d, 0.01), w * 0.14, w * 0.14, [
+            p.ink,
+            p.ink,
+            p.ink,
+          ]);
+          if (active)
+            for (let i = 0; i < (part.kind === 'scrubber' ? 1 : 3); i++) {
+              const q = (time * 0.14 + i / 3 + b.variant) % 1;
+              const pt = project(x + w / 2 + q, y + d / 2, top + 0.4 + q * 4);
+              ctx.save();
+              ctx.globalAlpha *= (1 - q) * 0.12;
+              ctx.fillStyle = p.muted;
+              ctx.beginPath();
+              ctx.ellipse(...pt, 1 + q * 4, 1 + q * 2, -0.4, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.restore();
+            }
+          break;
+        }
+        case 'skylights':
+          for (let i = 0; i < 3; i++) {
+            const yy = y + (i * d) / 3;
+            face(
+              [
+                [x, yy, z],
+                [x + w, yy, z],
+                [x + w, yy + d / 3 - 0.08, top],
+                [x, yy + d / 3 - 0.08, top],
+              ],
+              p['concrete-shadow'],
+            );
+            face(
+              [
+                [x, yy + d / 3 - 0.08, z],
+                [x + w, yy + d / 3 - 0.08, z],
+                [x + w, yy + d / 3 - 0.08, top],
+                [x, yy + d / 3 - 0.08, top],
+              ],
+              p.ink,
+            );
+            line(
+              [x + 0.2, yy + d / 3 - 0.075, z + 0.6],
+              [x + w - 0.2, yy + d / 3 - 0.075, z + 0.6],
+              p.concrete,
+              0.6,
+            );
+          }
+          break;
+        case 'solar':
+          for (const yy of [y + 0.15, y + d - 0.3])
+            box(volume(x, yy, z, w, 0.15, 0.6), g.steel);
+          for (let i = 0; i < 3; i++) {
+            const xx = x + (i * w) / 3;
+            box(volume(xx + 0.05, y, z + 0.6, w / 3 - 0.1, d, 0.4), [
+              p.materials,
+              p.steel,
+              p.surface,
+            ]);
+            for (let j = 1; j < 4; j++)
+              line(
+                [xx + 0.05, y + (j * d) / 4, top + 0.001],
+                [xx + w / 3 - 0.05, y + (j * d) / 4, top + 0.001],
+                p.surface,
+                0.4,
+              );
+          }
+          break;
+        case 'cargo':
+          box(v, [p['concrete-shadow'], p.steel, p.surface]);
+          for (let i = 1; i < 4; i++)
+            line(
+              [x + (i * w) / 4, y + d + 0.001, z + 0.1],
+              [x + (i * w) / 4, y + d + 0.001, top - 0.1],
+              p.materials,
+              0.35,
+            );
+          break;
+        case 'gantry': {
+          for (const solid of part.solids) box(solid, g.steel);
+          const xx =
+            x + w / 2 + (active ? Math.sin(time * 0.45) * (w / 2 - 1) : 0);
+          box(volume(xx - 0.4, y + 0.3, top - 0.75, 0.8, 1.2, 0.35), [
+            p.materials,
+            p.steel,
+            p.surface,
+          ]);
+          line(
+            [xx, y + d / 2, top - 0.75],
+            [xx, y + d / 2, z + 2.6],
+            p.materials,
+            0.5,
+          );
+          break;
+        }
+        case 'catwalk':
+          box({ ...v, h: 0.12 }, g.steel);
+          line([x, y + d, top], [x + w, y + d, top], p.concrete, 0.55);
+          for (let xx = x; xx <= x + w; xx += 1)
+            line(
+              [xx, y + d, z + 0.12],
+              [xx, y + d, top],
+              p['concrete-shadow'],
+              0.45,
+            );
+          break;
+        case 'ladder':
+          for (const xx of [x, x + w])
+            line([xx, y + d, z], [xx, y + d, top], p.concrete, 0.5);
+          for (let zz = z + 0.2; zz < top; zz += 0.4)
+            line([x, y + d, zz], [x + w, y + d, zz], p['concrete-shadow'], 0.4);
+          break;
+        case 'grid': {
+          slab(v, 0.2);
+          for (const xx of [x + 0.2, x + w - 0.2])
+            line(
+              [xx, y + d / 2, z + 0.2],
+              [xx, y + d / 2, top - 0.3],
+              p.concrete,
+              0.65,
+            );
+          line(
+            [x + 0.1, y + d / 2, top - 0.3],
+            [x + w - 0.1, y + d / 2, top - 0.3],
+            p.steel,
+            0.7,
+          );
+          for (let i = 0; i < 3; i++)
+            line(
+              [x + 0.3 + (i * (w - 0.6)) / 2, y + d / 2, top - 0.55],
+              [x + 0.3 + (i * (w - 0.6)) / 2, y + d / 2, top],
+              p.power,
+              0.9,
+            );
+          break;
+        }
+        case 'terminal':
+          box(v, g.dark);
+          strip(x + 0.08, y + d + 0.001, top - 0.2, w - 0.16, p.materials);
+          break;
+      }
+    }
+    for (const part of parts) {
+      ctx.save();
+      ctx.translate(0, -assemblyOffset(part.layer, study));
+      if (options.ghost) ctx.globalAlpha *= 0.6;
+      if (
+        (study?.part && study.part !== part.id) ||
+        (study?.focus && study.focus !== 'all' && study.focus !== part.layer)
+      )
+        ctx.globalAlpha *= 0.12;
+      drawPart(part);
+      // Short nozzles reach the bay boundary where pipe ports terminate.
+      for (const port of a.ports.filter((port) => port.part === part.id)) {
+        const v = part.volume,
+          [x, y, z] = port.point;
+        if (Math.abs(x - v.x) < 0.001)
+          box(
+            volume(x, y - 0.1, z - 0.1, Math.min(0.8, v.w / 2), 0.2, 0.2),
+            g.steel,
+          );
+        else if (Math.abs(x - v.x - v.w) < 0.001)
+          box(volume(x - 0.25, y - 0.1, z - 0.1, 0.25, 0.2, 0.2), g.steel);
+      }
+      ctx.restore();
+      // Draw side ducts after the hall surface, before the equipment bays they serve.
+      if (part.kind === 'hall' && !study?.exploded) {
         ctx.save();
-        ctx.translate(...iso(x + 0.25, y + 0.837, 8));
-        ctx.transform(1, 0.5, 0, 1, 0, 0);
-        ctx.font = 'bold 3.6px monospace';
-        ctx.fillStyle = p.concrete;
-        ctx.fillText(
-          b.type === 'power' ? 'VOLT' : b.type === 'factory' ? 'IRON' : 'CARGO',
-          0,
-          0,
-        );
+        if (options.ghost) ctx.globalAlpha *= 0.6;
+        if (study?.part || (study?.focus && study.focus !== 'all'))
+          ctx.globalAlpha *= 0.2;
+        for (const route of a.routes)
+          for (let i = 1; i < route.points.length; i++)
+            line(
+              route.points[i - 1]!,
+              route.points[i]!,
+              route.service === 'heat'
+                ? p.production
+                : route.service === 'power'
+                  ? p.power
+                  : route.service === 'coolant'
+                    ? p['concrete-shadow']
+                    : p.steel,
+              route.service === 'exhaust' ? 1.1 : 0.7,
+            );
         ctx.restore();
       }
-    });
-    function furnace(xx: number) {
-      taper(xx, y + 0.28, 0.15, 0.12, h + 4, b.h * 0.34, steel);
-      taper(xx, y + 0.28, 0.16, 0.16, h + b.h * 0.34 + 4, 3, concrete);
-      taper(xx, y + 0.28, 0.1, 0.1, h + b.h * 0.34 + 7, 0.5, [
-        p.ink,
-        p.ink,
-        p.ink,
-      ]);
-      if (active) {
-        const exhaust = hasModule(b, 'scrubber') ? 1 : 4;
-        for (let i = 0; i < exhaust; i++) {
-          const q = (time * 0.13 + i / exhaust + b.variant) % 1;
-          const point = iso(
-            xx + q * 0.16,
-            y + 0.28,
-            h + b.h * 0.34 + 9 + q * 22,
-          );
-          ctx.save();
-          ctx.globalAlpha *= (1 - q) * 0.12;
-          ctx.fillStyle = p.muted;
-          ctx.beginPath();
-          ctx.ellipse(...point, 2 + q * 5, 1.5 + q * 3, -0.4, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        }
-      }
     }
-    function turbine(xx: number, yy: number, zz: number) {
-      taper(xx, yy, 0.13, 0.13, zz, 6, dark);
-      taper(xx, yy, 0.115, 0.115, zz + 6, 1, concrete);
-      const angle = active ? time * 1.4 : 0.4;
-      for (let i = 0; i < 4; i++) {
-        const a = angle + (i * Math.PI) / 2;
-        line(
-          iso(xx, yy, zz + 7.1),
-          iso(xx + Math.cos(a) * 0.09, yy + Math.sin(a) * 0.09, zz + 7.1),
-          p.power,
-          1,
-        );
-      }
-    }
-    layer('machinery', () => {
-      if (b.type === 'power') {
-        // Faceted cooling stacks with a waist and open throat are the landmark.
-        for (const xx of [0.36, 0.7]) {
-          taper(x + xx, y + 0.38, 0.18, 0.105, h + 3, b.h * 0.27, concrete);
-          taper(
-            x + xx,
-            y + 0.38,
-            0.105,
-            0.16,
-            h + 3 + b.h * 0.27,
-            b.h * 0.18,
-            concrete,
-          );
-          taper(x + xx, y + 0.38, 0.18, 0.18, h + 3 + b.h * 0.45, 2, steel);
-          taper(x + xx, y + 0.38, 0.125, 0.125, h + 5 + b.h * 0.45, 0.1, [
-            p.ink,
-            p.ink,
-            p.ink,
-          ]);
-          lamp(
-            iso(x + xx + 0.1, y + 0.48, h + b.h * 0.45),
-            p.power,
-            active,
-            1.2,
-          );
-        }
-        turbine(x + 0.41, y + 0.69, h + 3);
-      } else if (b.type === 'factory') {
-        furnace(x + 0.3);
-        box(x + 0.66, y + 0.6, 0.12, 0.16, h + 4, 5, concrete);
-        for (let i = 0; i < 3; i++)
-          line(
-            iso(x + 0.68, y + 0.62 + i * 0.045, h + 9.5),
-            iso(x + 0.76, y + 0.62 + i * 0.045, h + 9.5),
-            p.ink,
-            0.8,
-          );
-      } else {
-        // Inventory is the only source of stacked freight on the apron.
-        const count = Math.min(8, Math.ceil((b.stock ?? 0) / 50));
-        for (let i = 0; i < count; i++) {
-          const xx = x + 0.13 + (i % 4) * 0.18,
-            z = 6 + Math.floor(i / 4) * 5;
-          box(xx, y + 0.81, 0.16, 0.14, z, 4, [
-            p.materials,
-            p.steel,
-            p.surface,
-          ]);
-          if (fine)
-            line(
-              iso(xx + 0.04, y + 0.955, z + 1),
-              iso(xx + 0.04, y + 0.955, z + 4),
-              p['concrete-shadow'],
-              0.5,
-            );
-        }
-      }
-    });
-    layer('modules', () => {
-      if (hasModule(b, 'turbine')) turbine(x + 0.72, y + 0.69, h + 3);
-      if (hasModule(b, 'heat-exchanger')) {
-        box(x + 0.69, y + 0.51, 0.22, 0.33, h + 3, 6, dark);
-        for (let i = 0; i < 5; i++)
-          box(x + 0.7, y + 0.52 + i * 0.06, 0.2, 0.025, h + 4, 7, [
-            p.production,
-            p.soot,
-            p.surface,
-          ]);
-      }
-      if (hasModule(b, 'furnace')) furnace(x + 0.65);
-      if (hasModule(b, 'scrubber')) {
-        taper(x + 0.76, y + 0.65, 0.12, 0.12, h + 4, 13, concrete);
-        taper(x + 0.76, y + 0.65, 0.14, 0.14, h + 9, 2, steel);
-        line(
-          iso(x + 0.76, y + 0.65, h + 17),
-          iso(x + 0.76, y + 0.65, h + 21),
-          p.materials,
-          1.5,
-        );
-      }
-      if (hasModule(b, 'loading-bay')) {
-        // A loading gantry is supported by actual uprights on the apron.
-        for (const xx of [0.12, 0.86])
-          box(x + xx, y + 0.83, 0.035, 0.05, 6, h + 6, steel);
-        box(x + 0.1, y + 0.81, 0.82, 0.11, h + 12, 3, concrete);
-        const shuttle = active ? 0.42 + Math.sin(time * 0.45) * 0.16 : 0.42;
-        box(x + shuttle, y + 0.81, 0.13, 0.11, h + 8, 4, trim);
-        line(
-          iso(x + shuttle + 0.06, y + 0.86, h + 8),
-          iso(x + shuttle + 0.06, y + 0.86, 12),
-          p.materials,
-          0.7,
-        );
-      }
-      if (hasModule(b, 'solar-roof')) {
-        for (let i = 0; i < 3; i++) {
-          box(x + 0.2 + i * 0.18, y + 0.17, 0.16, 0.3, h + 17, 1, [
-            p.materials,
-            p.steel,
-            p.ink,
-          ]);
-          for (let j = 0; j < 3; j++)
-            line(
-              iso(x + 0.2 + i * 0.18, y + 0.2 + j * 0.08, h + 18.1),
-              iso(x + 0.36 + i * 0.18, y + 0.2 + j * 0.08, h + 18.1),
-              p.surface,
-              0.5,
-            );
-        }
-      }
-    });
-    layer('services', () => {
-      // A consistent rear corner carries the control room and service riser.
-      const coreH =
-        shape === 'tower' ? b.h * 0.34 : shape === 'stepped' ? 11 : 5;
-      box(x + 0.13, y + 0.14, 0.19, 0.3, h + 4, coreH, dark);
-      box(x + 0.1, y + 0.11, 0.25, 0.36, h + 4 + coreH, 2, steel);
-      for (let z = h + 7; z < h + coreH + 2; z += 5)
-        line(
-          iso(x + 0.15, y + 0.445, z),
-          iso(x + 0.28, y + 0.445, z),
-          active ? p.foreground : p.edge,
-          1,
-        );
-      if (b.design?.balcony) {
-        box(x + 0.08, y + 0.83, 0.83, 0.1, h * 0.55, 1, steel);
-        railing(x + 0.08, y + 0.93, 0.83, h * 0.55 + 1);
-      }
-      const pin = attachment(b, 'power'),
-        base = iso(pin.x, pin.y, pin.base),
-        top = iso(pin.x, pin.y, pin.z);
-      line(base, top, p['concrete-shadow'], 1.4);
-      line([top[0] - 4, top[1]], [top[0] + 4, top[1]], p.concrete, 1.1);
-      for (const dx of [-4, 0, 4])
-        line(
-          [top[0] + dx, top[1] - 2],
-          [top[0] + dx, top[1] + 2],
-          p.power,
-          1.1,
-        );
-      if (b.type !== 'power') {
-        const pin = attachment(b, 'materials'),
-          top = iso(pin.x, pin.y, pin.z);
-        line(iso(pin.x, pin.y, pin.base), top, p.materials, 1);
-        line(
-          [top[0] - 2.5, top[1] - 1],
-          [top[0] + 2.5, top[1] + 1],
-          p.materials,
-          0.8,
-        );
-      }
-    });
     if (options.selected)
-      polygon(
+      g.polygon(
         [
-          iso(x, y, 1),
-          iso(x + 1, y, 1),
-          iso(x + 1, y + 1, 1),
-          iso(x, y + 1, 1),
+          iso(b.x, b.y, 1),
+          iso(b.x + 1, b.y, 1),
+          iso(b.x + 1, b.y + 1, 1),
+          iso(b.x, b.y + 1, 1),
         ],
         p.foreground + '05',
         p.foreground,

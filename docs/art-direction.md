@@ -8,7 +8,11 @@
 
 The curated OpenAI skill catalog was checked. Its visual workflows center on Figma, which this project does not require. [Anthropic's frontend-design guidance](https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md) was read and used for subject-led planning, hierarchy and screenshot critique; no external skill or plugin was installed and no reference images are shipped.
 
-## Design plan
+## Assembly correction
+
+The initial art pass was too freely stacked: roofs and machinery could intersect. The [building assembly contract](building-assemblies.md) now governs placement and supersedes the early silhouettes below. Heavy equipment occupies ground bays, roofs have dedicated functions, and each part has a declared support and clearance. Keep the material language, but derive the silhouette from the process.
+
+## Initial design plan
 
 The city is the main visual. A restrained square interface surrounds it; no hero copy, new dashboard or bottom panels. Keep charcoal/concrete with yellow electricity, blue logistics and copper production. All values remain in `src/app/palette.css`. UI typography stays compact and quiet; architectural lettering sits on facades and serves identity. Working light must have a source.
 

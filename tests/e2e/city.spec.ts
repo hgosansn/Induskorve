@@ -231,6 +231,25 @@ test('asset atlas renders each family and module without editing the city', asyn
       await atlas.getByRole('checkbox', { name: new RegExp(module) }).check();
       await expect.poll(pixels).toBe(before);
     }
+    await expect(atlas.getByText(/^Fit checked:/)).toBeVisible();
+    const composed = await pixels();
+    await atlas
+      .getByLabel('Why is this part here?')
+      .selectOption(
+        family === 'Power'
+          ? 'cooler'
+          : family === 'Foundry'
+            ? 'extraction'
+            : 'solar',
+      );
+    await expect.poll(pixels).not.toBe(composed);
+    await expect(atlas.getByText(/^Mounted on:/)).toContainText(
+      family === 'Freight' ? 'Storage hall' : 'Foundation and apron',
+    );
+    if (family === 'Power')
+      await page.screenshot({ path: 'test-results/atlas-part-role.png' });
+    await atlas.getByLabel('Why is this part here?').selectOption('all');
+    await expect.poll(pixels).toBe(composed);
     await page.screenshot({
       path: `test-results/atlas-${family.toLowerCase()}.png`,
     });

@@ -24,8 +24,16 @@ This section supersedes historical implementation/layout/run instructions below.
 - Local production ticks every 10 seconds only while joined and visible. Metal fills warehouse stockpiles; full hubs stop output; dispatch clears stock and records shipped metal. Raw feedstock is unlimited, construction is free, and there is no offline catch-up or shared authority yet.
 - Ground tint is current local emissions exposure, not accumulated damage or a gameplay penalty. Heat is shown with copper pipes; existing power wires and airborne logistics indicators remain.
 - Keep workshop → forecast ghost → placement and an empty bottom UI. Forecast uses the same network rules as placement.
-- The visual direction is Industrial nocturne: engineered dark ground, faceted cooling towers, hot sawtooth foundries and stepped freight terraces. Reference study and acceptance criteria live in `docs/art-direction.md`; no reference images are shipped.
-- **City → Design atlas** previews the same assets assembled, separated by layer, with equipment and operating-state controls. Atlas state never writes to the city. `geometry.ts`, `building-layout.ts`, `buildings.ts` and `terrain-art.ts` are typed; the remaining adverts, connections and pedestrians stay in isolated `artwork.js`.
+- The visual direction is Industrial nocturne: engineered dark ground, ground-mounted cooling cells, sawtooth foundries with side extraction and clear freight aprons. Reference study and acceptance criteria live in `docs/art-direction.md`; no reference images are shipped.
+- **City → Design atlas** previews the same assets assembled, separated by layer, with equipment and operating-state controls. Atlas state never writes to the city. Its part selector explains function and support. `geometry.ts`, `building-layout.ts`, `buildings.ts` and `terrain-art.ts` are typed; the remaining adverts, connections and pedestrians stay in isolated `artwork.js`.
+
+## Building assembly rules (2026-10-28)
+
+- Read `docs/building-assemblies.md` before adding geometry. Process → floorplan → mounting bays and clearances → compatible service ports → artwork.
+- `src/rendering/assembly/mounts.ts` defines bays before equipment is fitted. `compose.ts` snaps parts into them. `model.ts` validates support contact, solid intersections, access lanes and pipe routing. All geometry uses one 12-unit local kit; Canvas conversion is confined to rendering.
+- Keep heavy equipment on supported ground bays. Reserve roofs for the declared control, daylight, access, solar and grid equipment. Optional modules may not overlap a rooflight or block an access path.
+- Layers are semantic inspection groups, never a drawing order. Keep external wire/heat endpoints and facade displays attached to their actual assembly surfaces.
+- Existing tests exercise 360 shape/height/module/balcony combinations and intentional invalid assemblies. Envelope validation is not structural engineering, general mesh collision or city-wide route avoidance.
 
 ## Product identity and goal
 

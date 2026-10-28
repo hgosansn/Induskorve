@@ -3,6 +3,9 @@ import type { BuildingDraft } from '../../domain/city/model';
 import { createArtwork } from '../../rendering/canvas/artwork.js';
 import { projectWorld } from '../../rendering/canvas/view-model';
 import type { BuildingStudy } from '../../rendering/canvas/building-layout';
+import { assemblyOffset } from '../../rendering/canvas/building-layout';
+import { buildingAssembly } from '../../rendering/assembly/compose';
+import { KIT_Z } from '../../rendering/assembly/model';
 
 // Workshop and Atlas share the production renderer; no parallel mockup assets.
 export function BuildingPreview({
@@ -49,6 +52,14 @@ export function BuildingPreview({
     world.terrain = new Map([['0,0', { x: 0, y: 0 }]]);
     for (const n of world.net.values()) n.active = active;
     world.buildings.get('0,0')!.stock = stock;
+    const assembly = buildingAssembly(world.buildings.get('0,0')!);
+    const upper = Math.max(
+      ...assembly.parts.map(
+        (part) =>
+          (part.volume.z + part.volume.h) * KIT_Z +
+          assemblyOffset(part.layer, study),
+      ),
+    );
     const reduced = matchMedia('(prefers-reduced-motion: reduce)');
     let raf = 0;
     const draw = (time: number) => {
@@ -61,16 +72,6 @@ export function BuildingPreview({
         el.width = Math.round(rect.width * dpr);
         el.height = Math.round(rect.height * dpr);
       }
-      const roof = draft.height * (draft.kind === 'warehouse' ? 0.42 : 0.55);
-      const top = Math.max(
-        draft.kind === 'power'
-          ? draft.height * 0.45 + 8
-          : draft.kind === 'factory'
-            ? draft.height * 0.34 + 12
-            : 18,
-        draft.design.shape === 'tower' ? draft.height * 0.34 + 6 : 12,
-      );
-      const upper = roof + top + (study?.exploded ? 76 : 0);
       const zoom = Math.min(
         6,
         rect.width / 85,
