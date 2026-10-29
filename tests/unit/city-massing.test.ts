@@ -22,6 +22,43 @@ import {
 
 const families = ['power', 'factory', 'warehouse'] as const;
 describe('modular city buildings', () => {
+  it('creates measurably different footprints, vertical cores and usable terrace bands at the same height setting', () => {
+    for (const type of families) {
+      const forms = (['block', 'stepped', 'tower'] as const).map((shape) => {
+        const b = {
+          type,
+          h: 85,
+          variant: 0.42,
+          design: { ...defaultDraft.design, shape },
+        };
+        const assembly = composeBuilding(b);
+        const hall = assembly.parts.find((p) => p.id === 'hall')!.volume;
+        return { assembly, hall, m: cityMassing(b, hall) };
+      });
+      const [wide, terraces, tower] = forms as [
+        (typeof forms)[number],
+        (typeof forms)[number],
+        (typeof forms)[number],
+      ];
+      expect(wide.hall.w / tower.hall.w).toBeGreaterThan(1.3);
+      expect(tower.hall.h / wide.hall.h).toBeGreaterThan(2.4);
+      expect(terraces.hall.w).toBeGreaterThan(tower.hall.w);
+      expect(terraces.hall.w).toBeLessThan(wide.hall.w);
+      expect(
+        tower.m.recipe.heights.filter((h) => h === tower.m.levels).length,
+      ).toBeLessThanOrEqual(8);
+      const rack = tower.assembly.parts.find((p) => p.id === 'grid')!.volume;
+      expect(rack.z).toBeLessThan(tower.hall.z + tower.hall.h * 0.6);
+      expect(terraces.m.recipe.heights.slice(10, 15)).toEqual(
+        Array(5).fill(terraces.m.equipmentLevel),
+      );
+      for (const { assembly, hall } of forms) {
+        expect(validateAssembly(assembly)).toEqual([]);
+        for (const p of assembly.ports.filter((p) => p.part === 'hall'))
+          expect(p.point[0]).toBeCloseTo(hall.x + hall.w);
+      }
+    }
+  });
   it('supports every roof pad and retains connected floors across roles, shapes and seeds', () => {
     for (const type of families)
       for (const shape of ['block', 'stepped', 'tower'] as const)

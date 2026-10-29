@@ -1,3 +1,4 @@
+import { defaultDraft } from '../../src/domain/city/model';
 import { describe, expect, it, vi } from 'vitest';
 import { buildStreets, walkingRoute } from '../../src/domain/city/streets';
 import {
@@ -90,41 +91,43 @@ describe('streets and pedestrians', () => {
     }
   });
   it('keeps plot paths clear of every family and installed ground machinery', () => {
-    for (const type of ['power', 'factory', 'warehouse'] as const) {
-      const b = { ...plot(1, 1), type };
-      const layout = buildStreets(new Map([['1,1', b]]), terrain());
-      const assembly = composeBuilding({
-        ...b,
-        h: 85,
-        variant: 0.5,
-        stock: 400,
-        modules:
-          type === 'power'
-            ? ['turbine', 'heat-exchanger']
-            : type === 'factory'
-              ? ['furnace', 'scrubber']
-              : ['loading-bay', 'solar-roof'],
-      });
-      for (const e of layout.edges.filter((e) => e.kind === 'plot')) {
-        const a = layout.nodes.get(e.a)!,
-          c = layout.nodes.get(e.b)!;
-        for (let t = 0; t <= 1; t += 0.05) {
-          const x = (a.x + (c.x - a.x) * t - 1) * 12,
-            y = (a.y + (c.y - a.y) * t - 1) * 12;
-          for (const s of assembly.parts
-            .flatMap((p) => p.solids)
-            .filter((s) => s.z < 2.5)) {
-            expect(
-              x > s.x + 1e-6 &&
-                x < s.x + s.w - 1e-6 &&
-                y > s.y + 1e-6 &&
-                y < s.y + s.d - 1e-6,
-              `${type} route ${e.a} -> ${e.b}`,
-            ).toBe(false);
+    for (const type of ['power', 'factory', 'warehouse'] as const)
+      for (const shape of ['block', 'stepped', 'tower'] as const) {
+        const b = { ...plot(1, 1), type };
+        const layout = buildStreets(new Map([['1,1', b]]), terrain());
+        const assembly = composeBuilding({
+          ...b,
+          h: 85,
+          design: { ...defaultDraft.design, shape },
+          variant: 0.5,
+          stock: 400,
+          modules:
+            type === 'power'
+              ? ['turbine', 'heat-exchanger']
+              : type === 'factory'
+                ? ['furnace', 'scrubber']
+                : ['loading-bay', 'solar-roof'],
+        });
+        for (const e of layout.edges.filter((e) => e.kind === 'plot')) {
+          const a = layout.nodes.get(e.a)!,
+            c = layout.nodes.get(e.b)!;
+          for (let t = 0; t <= 1; t += 0.05) {
+            const x = (a.x + (c.x - a.x) * t - 1) * 12,
+              y = (a.y + (c.y - a.y) * t - 1) * 12;
+            for (const s of assembly.parts
+              .flatMap((p) => p.solids)
+              .filter((s) => s.z < 2.5)) {
+              expect(
+                x > s.x + 1e-6 &&
+                  x < s.x + s.w - 1e-6 &&
+                  y > s.y + 1e-6 &&
+                  y < s.y + s.d - 1e-6,
+                `${type} route ${e.a} -> ${e.b}`,
+              ).toBe(false);
+            }
           }
         }
       }
-    }
   });
   it('walks exclusively along graph edges and waits at plot destinations', () => {
     const world = projectWorld(createFoundingWorld());

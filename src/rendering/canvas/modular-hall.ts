@@ -113,7 +113,7 @@ export function createModularHallRenderer(
       y: v.y + 0.12,
       z: v.z + 0.18,
       width: v.d * 0.4 - 0.24,
-      height: v.h - 0.36,
+      height: levelHeight(m, m.gridLevel) - 0.36,
     });
     paint(tile.front);
     const point = (x: number, y: number, z: number) =>

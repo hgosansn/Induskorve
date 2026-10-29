@@ -44,9 +44,22 @@ The generator uses the same adjacency propagation and core reachability as the A
 
 Kit version 2 deliberately updates appearances with glazing, clerestories, louvers, ribbed cladding, braced frames and folded daylight roofs. Facade columns keep their construction language between floors. Roles and seeds select these pieces without changing production capacities. IDs, authors, modules and inventories remain intact. Separately, the exact origin founding station moves onto a free plot; see `streets.md`. Workshop seed controls reproduce the same layout in preview, ghost, placement and reload.
 
+## Silhouette families (kit version 3)
+
+`assembly/building-form.ts` owns the hall proportions and adjacent equipment aisle. The existing saved `block`, `stepped` and `tower` values now select **Wide hall**, **Terraces** and **Slender tower**. Buildings without a saved shape use a deterministic seed split across all three. Each still occupies one plot; this is not multi-tile construction.
+
+- Wide halls use the broadest footprint and a lower process enclosure, leaving a continuous rear roof.
+- Terraces have an intermediate footprint, a connected middle service terrace and an offset lower landing. The stair core connects the occupied storeys; daylight and solar mounts retain their flat reserved pads.
+- Towers have a narrower process podium and a concentrated upper core. The electrical deck stays low beside the tower instead of forcing a tall slab across the entire rear wall. Sharp vertical setbacks are intentional; floor reachability remains required.
+
+Equipment bays move with the hall edge, and pipes use the same wall coordinate and clear aisle. Wire endpoints read the actual rack elevation. Right-side displays use the supported rear facade height, including the lower tower deck. Machinery retrofits and inventory changes never reroll the profile.
+
+Tests compare actual width/height ratios, concentrated tower crowns, terrace bands and service-port alignment. The 432 role/shape/height/seed checks still validate stack support and floor connectivity; all 360 module/shape combinations remain collision-checked. Pedestrian-clearance checks now cover all three shapes for every building role.
+
 ## Ownership in code
 
 - `src/rendering/assembly/model.ts`: presentation-only parts, mounts, solid envelopes, clearances, ports, routes and validation.
+- `building-form.ts`: deterministic proportions, shared architecture labels and equipment aisle coordinates.
 - `mounts.ts`: reserved floorplans and mounting sockets, independent of fitted equipment.
 - `compose.ts`: role/module/stock configuration becomes an assembly with reasons and connections.
 - `draw-order.ts`: support-aware fixed-camera part ordering.

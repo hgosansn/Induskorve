@@ -1,13 +1,16 @@
 import { generateWfc, type WfcBuilding, type WfcConstraints } from './wfc';
 import type { AssemblyInput, Volume } from '../assembly/model';
+import { buildingShape } from '../assembly/building-form';
 
-export const CITY_KIT_VERSION = 2;
+export const CITY_KIT_VERSION = 3;
 export interface CityMassing {
   recipe: WfcBuilding;
   constraints: WfcConstraints;
   levels: number;
   podium: number;
   storey: number;
+  gridLevel: number;
+  equipmentLevel: number;
   fallback: boolean;
 }
 // This bounded cache survives immutable world projections and stock ticks. No solve per frame.
@@ -16,45 +19,70 @@ const instances = new WeakMap<AssemblyInput, CityMassing>();
 export function cityMassing(b: AssemblyInput, hall: Volume): CityMassing {
   const instance = instances.get(b);
   if (instance) return instance;
-  const shape = b.design?.shape ?? (b.variant > 0.67 ? 'tower' : 'stepped');
+  const shape = buildingShape(b);
   const key = [CITY_KIT_VERSION, b.type, b.h, b.variant, shape].join('/');
   const cached = cache.get(key);
   if (cached) {
     instances.set(b, cached);
     return cached;
   }
-  const limit = b.type === 'warehouse' ? 4 : b.type === 'factory' ? 5 : 6;
+  const limit = b.type === 'warehouse' ? 7 : 8;
   const levels = Math.max(
     2,
     Math.min(
       limit,
-      shape === 'tower' ? 6 : shape === 'block' ? 3 : 4,
+      shape === 'tower' ? 8 : shape === 'block' ? 3 : 5,
       Math.floor(hall.h / 1.2),
     ),
   );
   const podium = Math.min(2.7, hall.h * 0.65),
     storey = (hall.h - podium) / (levels - 1);
+  const gridLevel = shape === 'tower' ? Math.min(2, levels) : levels;
+  const equipmentLevel =
+    shape === 'tower' ? Math.min(2, levels - 1) : Math.max(1, levels - 2);
+  const step = shape === 'tower' ? Math.max(2, levels - 1) : 2;
   const pins: Record<number, number> = {};
   // Only the electrical deck and stair core pin the rear skyline.
   // The former control-room pad is free to step down with the generated shell.
   for (let x = 0; x < 5; x++) {
     pins[x + 20] = 1;
   }
-  for (const i of [2, 3, 4, 8, 9]) pins[i] = levels;
-  if (b.type === 'factory')
-    for (const i of [10, 11]) pins[i] = Math.max(1, levels - 2);
+  pins[2] = levels;
+  for (const i of [3, 4, 8, 9]) pins[i] = gridLevel;
+  if (shape === 'tower') {
+    // An occupied vertical core rises from the process podium; services remain
+    // on a low side deck instead of forcing the entire rear wall to tower height.
+    for (const i of [1, 6, 7]) pins[i] = levels;
+    for (const i of [0, 5, 10, 15]) pins[i] = 1;
+    pins[12] = Math.max(1, levels - 2);
+    pins[17] = equipmentLevel;
+  } else if (shape === 'stepped') {
+    // Continuous middle terrace plus a second offset landing, connected to the core.
+    for (let x = 0; x < 5; x++) pins[x + 10] = equipmentLevel;
+    const side = b.variant < 0.5 ? 0 : 2;
+    pins[15 + side] = 1;
+    pins[16 + side] = 1;
+  } else {
+    for (const i of [0, 1, 5, 6, 7]) pins[i] = levels;
+  }
+  if (b.type === 'factory') for (const i of [10, 11]) pins[i] = equipmentLevel;
   if (b.type === 'warehouse') {
-    for (const i of [13, 14, 18, 19]) pins[i] = Math.max(1, levels - 2);
-    if (shape !== 'block') pins[12] = 1; // a light court above the enclosed storage floor
+    for (const i of [13, 14, 18, 19]) pins[i] = equipmentLevel;
+    if (shape === 'stepped') pins[12] = equipmentLevel;
   }
   const constraints: WfcConstraints = {
     height: levels,
-    step: 2,
+    step,
     core: [2, 0],
     target:
-      shape === 'block'
-        ? levels
-        : Math.max(1.25, levels - 1 - (Math.floor(b.variant * 1000) % 3) * 0.4),
+      shape === 'tower'
+        ? 1.5
+        : shape === 'block'
+          ? levels
+          : Math.max(
+              1.25,
+              levels - 1 - (Math.floor(b.variant * 1000) % 3) * 0.4,
+            ),
     minimum: 1,
     pins,
   };
@@ -77,7 +105,7 @@ export function cityMassing(b: AssemblyInput, hall: Volume): CityMassing {
       ...Object.entries(pins).map(
         ([k, h]) =>
           h -
-          2 *
+          step *
             (Math.abs((i % 5) - (Number(k) % 5)) +
               Math.abs(Math.floor(i / 5) - Math.floor(Number(k) / 5))),
       ),
@@ -103,6 +131,8 @@ export function cityMassing(b: AssemblyInput, hall: Volume): CityMassing {
     levels,
     podium,
     storey,
+    gridLevel,
+    equipmentLevel,
     fallback: result.status !== 'solved',
   };
   if (cache.size >= 512) cache.delete(cache.keys().next().value!);

@@ -1,4 +1,5 @@
 import { cityMassing, levelHeight } from '../generation/city-massing';
+import { buildingForm } from './building-form';
 import {
   volume,
   type AssemblyInput,
@@ -9,16 +10,12 @@ import {
 
 export function assemblyDimensions(b: AssemblyInput) {
   const floor = 0.8;
-  const hallH = Math.max(3.5, b.h / 8) * (b.type === 'warehouse' ? 0.75 : 1);
+  const form = buildingForm(b);
   return {
+    ...form,
     floor,
-    hallH,
-    hallW: b.type === 'warehouse' ? 10.4 : b.type === 'factory' ? 6.3 : 6,
-    hallD: b.type === 'warehouse' ? 6.7 : 7.2,
-    roof: floor + hallH,
-    gridX:
-      0.9 +
-      (b.type === 'warehouse' ? 10.4 : b.type === 'factory' ? 6.3 : 6) * 0.6,
+    roof: floor + form.hallH,
+    gridX: 0.9 + form.hallW * 0.6,
     gridY: 0.9,
   };
 }
@@ -26,13 +23,13 @@ export function assemblyDimensions(b: AssemblyInput) {
 // The floorplan owns mounting locations before any optional equipment is fitted.
 // Empty bays remain reserved. Parts cannot invent sockets or move their supports.
 export function buildingMounts(b: AssemblyInput): Mount[] {
-  const { floor, hallH, hallW, hallD, roof, gridX, gridY } =
+  const { floor, hallH, hallW, hallD, gridX, gridY, equipmentX, equipmentW } =
     assemblyDimensions(b);
   const hall = volume(0.8, 0.8, floor, hallW, hallD, hallH);
   const massing = cityMassing(b, hall);
   const terrace = floor + massing.podium;
-  const equipmentLevel =
-    floor + levelHeight(massing, Math.max(1, massing.levels - 2));
+  const equipmentLevel = floor + levelHeight(massing, massing.equipmentLevel);
+  const gridLevel = floor + levelHeight(massing, massing.gridLevel);
   const mounts: Mount[] = [];
   const bay = (
     id: string,
@@ -42,7 +39,7 @@ export function buildingMounts(b: AssemblyInput): Mount[] {
     face: Mount['face'] = 'top',
   ) => mounts.push({ id: `${id}-mount`, accepts, volume: v, support, face });
   bay('hall', ['hall'], volume(0.8, 0.8, floor, hallW, hallD, hallH));
-  bay('grid', ['grid'], volume(gridX, gridY, roof, 1.7, 1.4, 2.7), 'hall');
+  bay('grid', ['grid'], volume(gridX, gridY, gridLevel, 1.7, 1.4, 2.7), 'hall');
   bay('terminal', ['terminal'], volume(10.7, 10.7, floor, 0.6, 0.6, 1.3));
   bay(
     'catwalk',
@@ -61,10 +58,25 @@ export function buildingMounts(b: AssemblyInput): Mount[] {
     bay(
       'cooler',
       ['cooler'],
-      volume(7.9, 1.1, floor, 3.1, 3.1, Math.max(5.5, hallH + 0.6)),
+      volume(
+        equipmentX,
+        1.1,
+        floor,
+        equipmentW,
+        3.1,
+        Math.max(5.5, hallH * 0.7 + 0.6),
+      ),
     );
-    bay('extra-turbine', ['turbine'], volume(7.9, 5.1, floor, 3.1, 2.8, 3.2));
-    bay('heat-recovery', ['exchanger'], volume(7.9, 8.9, floor, 2.6, 1.6, 2.4));
+    bay(
+      'extra-turbine',
+      ['turbine'],
+      volume(equipmentX, 5.1, floor, equipmentW, 2.8, 3.2),
+    );
+    bay(
+      'heat-recovery',
+      ['exchanger'],
+      volume(equipmentX, 8.9, floor, Math.min(2.6, equipmentW), 1.6, 2.4),
+    );
   } else if (b.type === 'factory') {
     bay(
       'daylight',
@@ -82,9 +94,20 @@ export function buildingMounts(b: AssemblyInput): Mount[] {
     bay(
       'extraction',
       ['stack', 'scrubber'],
-      volume(8.1, 1.1, floor, 2.8, 3, hallH + 3.2),
+      volume(
+        equipmentX,
+        1.1,
+        floor,
+        Math.min(2.8, equipmentW),
+        3,
+        hallH * 0.8 + 3.2,
+      ),
     );
-    bay('second-furnace', ['furnace'], volume(8.1, 5.5, floor, 2.8, 2.5, 3.5));
+    bay(
+      'second-furnace',
+      ['furnace'],
+      volume(equipmentX, 5.5, floor, Math.min(2.8, equipmentW), 2.5, 3.5),
+    );
   } else {
     bay(
       'solar',

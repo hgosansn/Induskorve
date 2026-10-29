@@ -20,7 +20,8 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
     routes: [],
     clearances: [],
   };
-  const { floor, hallH, hallW, roof, gridX, gridY } = assemblyDimensions(b);
+  const { floor, hallH, hallW, hallRight, equipmentX, pipeX } =
+    assemblyDimensions(b);
   const add = (
     id: string,
     kind: PartKind,
@@ -98,9 +99,9 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
     return id;
   };
   port('grid', grid, 'power', b.type === 'power' ? 'out' : 'in', [
-    gridX + 0.85,
-    gridY + 0.7,
-    roof + 2.7,
+    grid.volume.x + grid.volume.w / 2,
+    grid.volume.y + grid.volume.d / 2,
+    grid.volume.z + grid.volume.h,
   ]);
   port(
     'logistics',
@@ -110,7 +111,7 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
     [11, 11, floor + 1.3],
   );
   port('heat', hall, 'heat', b.type === 'power' ? 'out' : 'in', [
-    0.8 + hallW,
+    hallRight,
     7.4,
     floor + 1.1,
   ]);
@@ -138,11 +139,19 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
       'Rejects heat from the generator cooling loop. Mounted on the foundation, with an unobstructed upward outlet.',
       'machinery',
     );
-    port('coolant-out', hall, 'coolant', 'out', [6.8, 2.6, floor + 1.2]);
-    port('coolant-in', cooler, 'coolant', 'in', [7.9, 2.6, floor + 1.2]);
+    port('coolant-out', hall, 'coolant', 'out', [hallRight, 2.6, floor + 1.2]);
+    port('coolant-in', cooler, 'coolant', 'in', [equipmentX, 2.6, floor + 1.2]);
     route('cooling-feed', 'coolant-out', 'coolant-in');
-    port('coolant-return', cooler, 'coolant', 'out', [7.9, 3.3, floor + 0.6]);
-    port('coolant-return-in', hall, 'coolant', 'in', [6.8, 3.3, floor + 0.6]);
+    port('coolant-return', cooler, 'coolant', 'out', [
+      equipmentX,
+      3.3,
+      floor + 0.6,
+    ]);
+    port('coolant-return-in', hall, 'coolant', 'in', [
+      hallRight,
+      3.3,
+      floor + 0.6,
+    ]);
     route('cooling-return', 'coolant-return', 'coolant-return-in');
     if (hasModule(b, 'turbine')) {
       const turbine = add(
@@ -153,8 +162,12 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
         'modules',
         'turbine',
       );
-      port('turbine-out', turbine, 'power', 'out', [7.9, 6.5, floor + 1]);
-      port('bus-in', hall, 'power', 'in', [6.8, 6.5, floor + 1]);
+      port('turbine-out', turbine, 'power', 'out', [
+        equipmentX,
+        6.5,
+        floor + 1,
+      ]);
+      port('bus-in', hall, 'power', 'in', [hallRight, 6.5, floor + 1]);
       route('turbine-bus', 'turbine-out', 'bus-in');
     }
     if (hasModule(b, 'heat-exchanger')) {
@@ -167,15 +180,19 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
         'heat-exchanger',
       );
       port('heat-recovery-in', exchanger, 'heat', 'in', [
-        7.9,
+        equipmentX,
         9.7,
         floor + 1.1,
       ]);
       route('heat-recovery-feed', 'heat', 'heat-recovery-in', [
-        [7.4, 7.4, floor + 1.1],
-        [7.4, 9.7, floor + 1.1],
+        [pipeX, 7.4, floor + 1.1],
+        [pipeX, 9.7, floor + 1.1],
       ]);
-      port('heat-export', exchanger, 'heat', 'out', [10.5, 9.7, floor + 1.1]);
+      port('heat-export', exchanger, 'heat', 'out', [
+        exchanger.volume.x + exchanger.volume.w,
+        9.7,
+        floor + 1.1,
+      ]);
     }
   } else if (b.type === 'factory') {
     add(
@@ -196,8 +213,8 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
       scrubbed ? 'modules' : 'machinery',
       scrubbed ? 'scrubber' : undefined,
     );
-    port('fumes-out', hall, 'exhaust', 'out', [7.1, 2.6, floor + 2]);
-    port('fumes-in', exhaust, 'exhaust', 'in', [8.1, 2.6, floor + 2]);
+    port('fumes-out', hall, 'exhaust', 'out', [hallRight, 2.6, floor + 2]);
+    port('fumes-in', exhaust, 'exhaust', 'in', [equipmentX, 2.6, floor + 2]);
     route('extraction-duct', 'fumes-out', 'fumes-in');
     if (hasModule(b, 'furnace')) {
       const furnace = add(
@@ -209,14 +226,18 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
         'furnace',
       );
       port('second-fumes-out', furnace, 'exhaust', 'out', [
-        8.1,
+        equipmentX,
         6.4,
         floor + 2,
       ]);
-      port('second-fumes-in', exhaust, 'exhaust', 'in', [8.1, 3.3, floor + 2]);
+      port('second-fumes-in', exhaust, 'exhaust', 'in', [
+        equipmentX,
+        3.3,
+        floor + 2,
+      ]);
       route('second-extraction', 'second-fumes-out', 'second-fumes-in', [
-        [7.6, 6.4, floor + 2],
-        [7.6, 3.3, floor + 2],
+        [pipeX, 6.4, floor + 2],
+        [pipeX, 3.3, floor + 2],
       ]);
     }
   } else {

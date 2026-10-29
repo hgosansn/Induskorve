@@ -23,6 +23,7 @@ import {
 import { MODULES } from '../../domain/city/catalog';
 import { composeBuilding } from '../../rendering/assembly/compose';
 import { validateAssembly } from '../../rendering/assembly/model';
+import { BUILDING_FORMS } from '../../rendering/assembly/building-form';
 import {
   ASSEMBLY_LAYERS,
   type AssemblyLayer,
@@ -204,13 +205,14 @@ export function DesignAtlas() {
                     if (value) setShape(value as BuildingDesign['shape']);
                   }}
                 >
-                  <ToggleGroupItem value="block">Block</ToggleGroupItem>
-                  <ToggleGroupItem value="stepped">Stepped</ToggleGroupItem>
-                  <ToggleGroupItem value="tower">Tower</ToggleGroupItem>
+                  {(['block', 'stepped', 'tower'] as const).map((value) => (
+                    <ToggleGroupItem key={value} value={value}>
+                      {BUILDING_FORMS[value].label}
+                    </ToggleGroupItem>
+                  ))}
                 </ToggleGroup>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Connected modular floors form the hall. Machinery sits on
-                  supported pads.
+                  {BUILDING_FORMS[shape].description}
                 </p>
               </fieldset>
               <div className="space-y-2 border-t border-border pt-4">

@@ -23,6 +23,7 @@ import {
 import type { CityStore } from '../../application/city-store';
 import { MODULES, buildingStats } from '../../domain/city/catalog';
 import { Plus } from 'lucide-react';
+import { BUILDING_FORMS } from '../../rendering/assembly/building-form';
 
 export function BuildingWorkshop({ store }: { store: CityStore }) {
   const [open, setOpen] = useState(false);
@@ -108,15 +109,14 @@ export function BuildingWorkshop({ store }: { store: CityStore }) {
                 }}
                 aria-label="Building shape"
               >
-                {['block', 'stepped', 'tower'].map((v) => (
+                {(['block', 'stepped', 'tower'] as const).map((v) => (
                   <ToggleGroupItem key={v} value={v} className="capitalize">
-                    {v}
+                    {BUILDING_FORMS[v].label}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
               <p className="mt-2 text-xs text-muted-foreground">
-                Connected floor bays form the hall and terraces. Equipment has
-                reserved, supported pads.
+                {BUILDING_FORMS[draft.design.shape].description}
               </p>
             </fieldset>
             <div>

@@ -106,7 +106,7 @@ test('workshop design persists through ghost placement and reload', async ({
   await join(page);
   await page.getByRole('button', { name: 'Add building' }).click();
   await page.getByRole('radio', { name: 'Storage', exact: true }).click();
-  await page.getByRole('radio', { name: 'tower', exact: true }).click();
+  await page.getByRole('radio', { name: 'Slender tower', exact: true }).click();
   await page.getByRole('radio', { name: 'No display', exact: true }).click();
   await page.getByLabel('Service balcony').uncheck();
   await page.getByRole('checkbox', { name: 'Loading bay' }).check();
@@ -405,12 +405,12 @@ test('facade profiles and mounted displays change the architecture without editi
   const atlas = page.getByRole('dialog', { name: 'Design atlas', exact: true });
   const pixels = () => canvasHash(atlas.locator('canvas'));
   let previousProfile = await pixels();
-  for (const profile of ['Block', 'Tower', 'Stepped']) {
+  for (const profile of ['Wide hall', 'Slender tower', 'Terraces']) {
     await atlas.getByRole('radio', { name: profile, exact: true }).click();
     await expect.poll(pixels).not.toBe(previousProfile);
     previousProfile = await pixels();
     await page.screenshot({
-      path: `test-results/facade-${profile.toLowerCase()}.png`,
+      path: `test-results/facade-${profile.toLowerCase().replaceAll(' ', '-')}.png`,
     });
   }
   await atlas
