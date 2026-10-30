@@ -67,6 +67,14 @@ The isolated server workspace defines structures, appearances, citizens, presenc
 
 After joining, use **Add building** to choose purpose, functional modules, architecture, height, balcony and optional facade display. The workshop renders the configuration before **Choose location** activates its ghost. Click revealed empty ground to place one building; Escape/right-click cancels. **City** contains camera, network and session controls; the bottom of the canvas stays clear. Appearance settings are optional in existing saves and persist separately from simulation entities.
 
+## Daily contribution experiment
+
+Open **City → Daily playtest** without joining to try a separate six-plot scenario. Switch between Mira, Ivo and Sol (local test participants), choose **Place**, **Expand** or **Connect**, inspect the forecast and confirm for one energy. Each participant begins with one energy, regenerates one per 24 game hours and banks up to three. Shape selection and plot selection show the actual building ghost; Escape/right-click cancels the draft.
+
+**Run clock** advances one game hour per real second. **+1 hour** and **+1 day** allow controlled tests; the clock pauses when the document is hidden or the playtest closes. There is deliberately no wall-clock/offline catch-up. Automatic production and freight supply a 160-material public terminal, which adds 24 freight capacity per day on completion. Power shortages, full storage, attribution and lost output are visible. Export the run as JSON to compare experiments.
+
+Progress uses `induskorve:daily-playtest:v1`, independently of the city save. Invalid playtest data is preserved until an explicit reset. Balance is experimental: free construction, unlimited feedstock, fixed compatible routes and three switchable participants. This is not multiplayer or the final economy; generator/handling stages use the existing machinery artwork rather than a new physical part catalog. See the experiment contract in [architecture](docs/architecture.md#daily-contribution-playtest).
+
 ## Composable industry and visual language
 
 Buildings use constrained assemblies: generator halls with ground-mounted cooling cells, foundries with side extraction, and storage halls with clear loading aprons. Each piece snaps to a reserved mounting bay with a support, occupied volume and purpose. Functional modules live on domain entities; silhouettes, finish and displays remain in appearance records. Existing structures can be retrofitted from the inspector. Turbines add capacity; heat recovery supplies a nearby connected foundry; furnaces raise demand/output; scrubbers reduce the visible operating footprint; loading bays add connections/storage; solar roofs lower warehouse grid demand.

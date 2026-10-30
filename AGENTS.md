@@ -1,6 +1,6 @@
 # Induskorve — agent handover
 
-Updated: 2026-10-29. This file captures the product direction and decisions from the founding conversation. Read it before changing the experience. Distinguish implemented prototype behavior from proposed future simulation rules.
+Updated: 2026-10-30. This file captures the product direction and decisions from the founding conversation. Read it before changing the experience. Distinguish implemented prototype behavior from proposed future simulation rules.
 
 ## Current engineering foundation (2026-10-28)
 
@@ -27,6 +27,12 @@ This section supersedes historical implementation/layout/run instructions below.
 - Foundations now follow hall and equipment contact solids; no raised whole-plot slab. Streets use one derived topology in `domain/city/streets.ts` for asphalt arms, curbs, zebra crossings and pedestrian paths. Buildings on old road coordinates cap those roads without moving saved structures. Walkers use sidewalks/crossings and flat plot access paths, with pauses at front aprons and preference for their own plots. Streetlights are ambient public fixtures, with cached ground light pools; they do not yet consume simulated electricity. See `docs/streets.md`.
 - The visual direction is Industrial nocturne: engineered dark ground, ground-mounted cooling cells, sawtooth foundries with side extraction and clear freight aprons. Reference study and acceptance criteria live in `docs/art-direction.md`; no reference images are shipped.
 - **City → Design atlas** previews the same assets assembled, separated by layer, with equipment and operating-state controls. Atlas state never writes to the city. Its part selector explains function and support. `geometry.ts`, `building-layout.ts`, `buildings.ts` and `terrain-art.ts` are typed; the remaining adverts, connections and pedestrians stay in isolated `artwork.js`.
+
+## Daily loop experiment (2026-10-30)
+
+- **City → Daily playtest** is a separate six-plot scenario with three switchable local participants, Place/Expand/Connect commands, 1 energy per 24 game hours (bank up to 3), a controllable accelerated clock and a 160-material public terminal. Rules and diagnostics are in `domain/city/playtest.ts`; see `docs/architecture.md` and README. These experimental values do not replace the founding city's production rules.
+- Playtest persistence uses `induskorve:daily-playtest:v1`, never the founding-city save. Invalid data is preserved until explicit reset. The clock pauses when hidden/closed and starts paused after reload; there is no offline catch-up, authentication or multiplayer. Feedstock and construction are free; service routes are fixed compatible endpoint pairs. Generator/handling stages reuse existing machinery artwork rather than adding a new physical part catalog.
+- The scenario reuses the city renderer, palette, static caches and frame-loop gates. Test domain invariants and the end-to-end playthrough when changing the loop. Preserve forecasts, atomic energy costs, contribution attribution, save separation and material conservation.
 
 ## Building assembly rules (2026-10-28)
 
