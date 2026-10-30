@@ -17,11 +17,6 @@ import type { CityScene } from '../../rendering/canvas/scene';
 import { CityCanvas } from './city-canvas';
 import { BuildingWorkshop } from './building-workshop';
 import { DesignAtlas } from './design-atlas';
-const DailyPlaytest = lazy(() =>
-  import('../playtest/daily-playtest').then((m) => ({
-    default: m.DailyPlaytest,
-  })),
-);
 const JoinCityDialog = lazy(() =>
   import('./join-city-dialog').then((m) => ({ default: m.JoinCityDialog })),
 );
@@ -109,9 +104,6 @@ export function CityExperience({ store }: { store: CityStore }) {
                   ))}
                 </ToggleGroup>
                 <DesignAtlas />
-                <Suspense fallback={null}>
-                  <DailyPlaytest />
-                </Suspense>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant="outline"

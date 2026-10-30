@@ -14,9 +14,24 @@ export default defineConfig({
     ...devices['Desktop Chrome'],
     channel: process.env.E2E_CHANNEL,
   },
-  webServer: {
-    command: 'npm run preview -- --port 4173 --strictPort',
-    url: 'http://127.0.0.1:4173',
-    reuseExistingServer: !process.env.CI,
-  },
+  projects: [
+    { name: 'product', testIgnore: '**/playtest.spec.ts' },
+    {
+      name: 'playtest',
+      testMatch: '**/playtest.spec.ts',
+      use: { baseURL: 'http://127.0.0.1:4175' },
+    },
+  ],
+  webServer: [
+    {
+      command: 'npm run preview -- --port 4173 --strictPort',
+      url: 'http://127.0.0.1:4173',
+      reuseExistingServer: !process.env.CI,
+    },
+    {
+      command: 'npm run dev -- --port 4175 --strictPort',
+      url: 'http://127.0.0.1:4175/playtest.html',
+      reuseExistingServer: !process.env.CI,
+    },
+  ],
 });

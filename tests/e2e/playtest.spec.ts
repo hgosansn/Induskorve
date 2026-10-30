@@ -4,15 +4,11 @@ test('plays a daily contribution scenario through completion without changing th
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/');
+  await page.goto('/playtest.html');
   const citySave = await page.evaluate(() =>
     localStorage.getItem('induskorve:city:v3'),
   );
-  await page.getByRole('button', { name: 'City', exact: true }).click();
-  await page
-    .getByRole('button', { name: 'Daily playtest', exact: true })
-    .click();
-  const panel = page.getByRole('dialog', {
+  const panel = page.getByRole('main', {
     name: 'Daily playtest / The freight terminal',
   });
   const actor = async (name: string) =>
@@ -97,10 +93,6 @@ test('plays a daily contribution scenario through completion without changing th
     await page.evaluate(() => localStorage.getItem('induskorve:city:v3')),
   ).toBe(citySave);
   await page.reload();
-  await page.getByRole('button', { name: 'City', exact: true }).click();
-  await page
-    .getByRole('button', { name: 'Daily playtest', exact: true })
-    .click();
   await expect(page.getByTestId('playtest-project')).toHaveText('160 / 160');
   await expect(
     page.getByRole('button', { name: 'Run clock', exact: true }),
@@ -110,12 +102,8 @@ test('plays a daily contribution scenario through completion without changing th
 test('accelerates time only while open, cancels drafts, and preserves invalid experiment data', async ({
   page,
 }) => {
-  await page.goto('/');
-  await page.getByRole('button', { name: 'City', exact: true }).click();
-  await page
-    .getByRole('button', { name: 'Daily playtest', exact: true })
-    .click();
-  const panel = page.getByRole('dialog', {
+  await page.goto('/playtest.html');
+  const panel = page.getByRole('main', {
     name: 'Daily playtest / The freight terminal',
   });
   await panel
@@ -135,18 +123,16 @@ test('accelerates time only while open, cancels drafts, and preserves invalid ex
         ).hour as number,
     );
   await expect.poll(hour).toBeGreaterThan(0);
-  await panel.getByRole('button', { name: 'Close', exact: true }).click();
+  await panel
+    .getByRole('link', { name: 'Return to city', exact: true })
+    .click();
   const closedAt = await hour();
   await page.waitForTimeout(1300);
   expect(await hour()).toBe(closedAt);
   await page.evaluate(() =>
     localStorage.setItem('induskorve:daily-playtest:v1', '{invalid'),
   );
-  await page.reload();
-  await page.getByRole('button', { name: 'City', exact: true }).click();
-  await page
-    .getByRole('button', { name: 'Daily playtest', exact: true })
-    .click();
+  await page.goto('/playtest.html');
   await expect(page.getByRole('alert')).toContainText('preserved');
   await expect(
     page.getByRole('button', { name: '+1 day', exact: true }),

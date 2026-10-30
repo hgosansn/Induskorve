@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { createPlaytestStore } from '../../application/playtest-store';
 import {
@@ -29,21 +21,13 @@ const energyNumber = (v: number) =>
 type Store = ReturnType<typeof createPlaytestStore>;
 
 export function DailyPlaytest() {
-  const [open, setOpen] = useState(false);
   const [store] = useState(() =>
     createPlaytestStore({
       getItem: (key) => localStorage.getItem(key),
       setItem: (key, value) => localStorage.setItem(key, value),
     }),
   );
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline">Daily playtest</Button>
-      </DialogTrigger>
-      {open && <PlaytestPanel store={store} />}
-    </Dialog>
-  );
+  return <PlaytestPanel store={store} />;
 }
 
 function PlaytestPanel({ store }: { store: Store }) {
@@ -55,6 +39,13 @@ function PlaytestPanel({ store }: { store: Store }) {
   const [mode, setMode] = useState<'place' | 'expand' | 'connect'>('place');
   const [shape, setShape] = useState<BuildingDesign['shape']>('block');
   const [action, setAction] = useState<PlaytestAction | null>(null);
+  useEffect(() => {
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setAction(null);
+    };
+    window.addEventListener('keydown', cancel);
+    return () => window.removeEventListener('keydown', cancel);
+  }, []);
   const [resetting, setResetting] = useState(false);
   const [notice, setNotice] = useState(
     'Choose a contribution. Planning is free.',
@@ -115,22 +106,25 @@ function PlaytestPanel({ store }: { store: Store }) {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   return (
-    <DialogContent
-      className="flex h-[94dvh] w-[96vw] max-w-none flex-col gap-3 overflow-y-auto p-4 sm:max-w-none lg:overflow-hidden lg:p-6"
-      onEscapeKeyDown={(event) => {
-        if (action) {
-          event.preventDefault();
-          setAction(null);
-        }
-      }}
+    <main
+      aria-label="Daily playtest / The freight terminal"
+      className="flex h-dvh w-full flex-col gap-3 overflow-y-auto bg-background p-4 text-foreground lg:overflow-hidden lg:p-6"
     >
-      <DialogHeader className="pr-6">
-        <DialogTitle>Daily playtest / The freight terminal</DialogTitle>
-        <DialogDescription>
-          Three local test participants. One shared project. Separate save; your
-          founding city is untouched.
-        </DialogDescription>
-      </DialogHeader>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-2">
+          <h1 className="text-lg font-semibold">
+            Daily playtest / The freight terminal
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Three local test participants. One shared project. Separate save;
+            your founding city is untouched. Development only; excluded from
+            release builds.
+          </p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <a href="./">Return to city</a>
+        </Button>
+      </header>
       <div className="flex flex-wrap items-center justify-between gap-3 border-y border-border py-3">
         <div>
           <p className="font-mono text-sm" data-testid="playtest-clock">
@@ -551,6 +545,6 @@ function PlaytestPanel({ store }: { store: Store }) {
           </section>
         </div>
       </div>
-    </DialogContent>
+    </main>
   );
 }
