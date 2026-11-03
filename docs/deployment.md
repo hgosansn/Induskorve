@@ -5,7 +5,7 @@
 3. Merge the reviewed branch into `main`. `pages.yml` builds and uploads `dist/`, then deploys through the `github-pages` environment.
 4. Verify the returned deployment URL. Repository setup alone is not proof of publication.
 
-Build and PR jobs have `contents: read`; the Pages build also has `pages: read` for site configuration. Only the deploy job gets `pages: write` and `id-token: write`. Workflows do not change repository visibility, collaborators, branch/tag protections or releases.
+Build and PR jobs have `contents: read`; the Pages build also has `pages: write` and requests `configure-pages` enablement for initial site configuration. The deploy job gets `pages: write` and `id-token: write`. GitHub can still require an owner to activate Pages in settings: the publication attempt returned “Resource not accessible by integration” at site creation despite a successful build. After enabling GitHub Actions as the Pages source, re-run the Pages workflow and verify the public URL. Workflows do not change repository visibility, collaborators, branch/tag protections or releases.
 
 Vite uses `base: './'`: hashed assets resolve under `/Induskorve/` and custom domains. There are no path routes needing a 404 fallback. `.nojekyll` is copied from `public/`; generated `dist/` is excluded from Git.
 

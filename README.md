@@ -6,7 +6,7 @@ Explore a rain-soaked isometric district of foundries, tangled power lines, glow
 
 ![Induskorve at night, with pixel rain and warm streetlights](docs/images/city-nocturne.jpg)
 
-**[Play the prototype](https://hgosansn.github.io/Induskorve/)** · [How it works](docs/gameplay-foundation.md) · [Run locally](#run-locally)
+**Prototype: [Pages activation pending](https://github.com/hgosansn/Induskorve/settings/pages)** · [How it works](docs/gameplay-foundation.md) · [Run locally](#run-locally)
 
 ## A city worth looking into
 
@@ -37,6 +37,8 @@ Start as a spectator. Open **City projects** to explore the district's needs, pr
 | Explore the artwork           | City → Design atlas                           |
 
 ## Prototype status
+
+The source and screenshots are published to `main`. The Pages build passes, but GitHub refused automatic site creation with “Resource not accessible by integration.” A repository owner must select **Settings → Pages → Source → GitHub Actions**, then re-run the [Pages workflow](https://github.com/hgosansn/Induskorve/actions/workflows/pages.yml). The intended demo address is <https://hgosansn.github.io/Induskorve/>; it is not live until that deployment succeeds.
 
 **The public prototype runs in browser-local mode.** Your city, identity and contributions are saved in that browser. Local production runs while joined and visible and pauses when you leave. Construction and feedstock are currently free. Ambient pedestrians are scenery, not online players. Residents, rent and shop commerce are not simulated.
 
