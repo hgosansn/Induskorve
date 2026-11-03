@@ -228,6 +228,7 @@ describe('live integration contracts', () => {
       kind: 'factory',
       enabled: true,
       creator: 'a'.repeat(64),
+      definitionVersion: 1,
       revision: 1n,
     });
     expect(mapped.id).toBe(id);
@@ -243,6 +244,7 @@ describe('live integration contracts', () => {
         kind: 'factory',
         enabled: true,
         creator: 'a'.repeat(64),
+        definitionVersion: 1,
         revision: 1n,
       }),
     ).toThrow();

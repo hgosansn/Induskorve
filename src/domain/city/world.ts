@@ -4,7 +4,7 @@ import {
   type BuildingDraft,
   type BuildingModule,
 } from './model';
-import { RULES, buildingStats } from './catalog';
+import { BUILDINGS, RULES, buildingStats } from './catalog';
 import {
   buildingKindSchema,
   citizenSchema,
@@ -52,7 +52,7 @@ export function dispatchMetal(
 ): WorldSnapshot {
   requireCitizen(world, citizenId);
   const warehouse = world.buildings.find(
-    (b) => b.id === id && b.type === 'warehouse',
+    (b) => b.id === id && BUILDINGS[b.type].role === 'storage',
   );
   if (
     !warehouse ||
@@ -63,14 +63,14 @@ export function dispatchMetal(
   const stock =
     economy?.stockpiles.find((s) => s.buildingId === id)?.metal ?? 0;
   if (!economy || !stock) throw new Error('No metal ready for dispatch.');
+  const shippedMetal = (economy.shippedMetal ?? 0) + stock;
+  if (!Number.isSafeInteger(shippedMetal))
+    throw new Error('Dispatch total limit reached.');
   return {
     ...world,
     economy: {
       ...economy,
-      shippedMetal: Math.min(
-        Number.MAX_SAFE_INTEGER,
-        (economy.shippedMetal ?? 0) + stock,
-      ),
+      shippedMetal,
       stockpiles: economy.stockpiles.map((s) =>
         s.buildingId === id ? { ...s, metal: 0 } : s,
       ),
@@ -109,6 +109,38 @@ export function createFoundingWorld(): WorldSnapshot {
         });
       }
     }
+  // New cities include a town quarter. This generator never rewrites an existing save.
+  const appearances = new Map(world.appearances.map((a) => [a.buildingId, a]));
+  for (const building of world.buildings) {
+    if (building.type !== 'factory' || building.x < 1 || building.y > 3)
+      continue;
+    const streetFront = ((building.y % 4) + 4) % 4 === 3;
+    building.type = streetFront
+      ? 'shop'
+      : building.id % 6 === 0
+        ? 'skyscraper'
+        : 'residential';
+    const appearance = appearances.get(building.id)!;
+    appearance.height =
+      building.type === 'shop'
+        ? 36
+        : building.type === 'skyscraper'
+          ? 72 + appearance.seed * 13
+          : 36 + appearance.seed * 35;
+    appearance.design = {
+      shape:
+        building.type === 'shop'
+          ? 'block'
+          : building.type === 'skyscraper'
+            ? 'tower'
+            : appearance.seed < 0.5
+              ? 'block'
+              : 'stepped',
+      stacks: false,
+      balcony: true,
+      display: building.type === 'skyscraper' ? 'animated' : 'none',
+    };
+  }
   world.buildings.push({ id: 0, x: 0, y: 0, type: 'power', on: true });
   world.appearances.push({ buildingId: 0, height: 85, seed: 0.6 });
   return relocateFoundingStation(world);
@@ -126,7 +158,7 @@ export function joinLocalCity(
   name: string,
   id: string,
 ): { world: WorldSnapshot; citizen: Citizen } {
-  const parsed = citizenSchema.parse({ id, name });
+  const parsed = citizenSchema.parse({ id, name, joinedAt: Date.now() });
   const existing = world.citizens.find(
     (c) => c.name.toLowerCase() === parsed.name.toLowerCase(),
   );

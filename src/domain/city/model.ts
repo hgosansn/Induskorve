@@ -1,34 +1,33 @@
 import { z } from 'zod';
+import { progressionSchema } from './technology';
+import { BUILDINGS, MODULES } from './catalog';
+import { BUILDING_KINDS, MODULE_KINDS } from '../../../shared/city/ids';
 
-export const buildingKindSchema = z.enum(['factory', 'power', 'warehouse']);
+export const buildingKindSchema = z.enum(BUILDING_KINDS);
 export type BuildingKind = z.infer<typeof buildingKindSchema>;
+export const isCivicKind = (kind: BuildingKind) =>
+  kind === 'residential' || kind === 'skyscraper' || kind === 'shop';
 export const positionSchema = z.object({
   x: z.number().int().min(-1_000_000).max(1_000_000),
   y: z.number().int().min(-1_000_000).max(1_000_000),
 });
 export type Position = z.infer<typeof positionSchema>;
 export const citizenSchema = z.object({
+  joinedAt: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(Number.MAX_SAFE_INTEGER)
+    .optional(),
   id: z.string().min(1).max(128),
   name: z.string().trim().min(1).max(24),
 });
 export type Citizen = z.infer<typeof citizenSchema>;
-export const moduleSchema = z.enum([
-  'turbine',
-  'heat-exchanger',
-  'furnace',
-  'scrubber',
-  'loading-bay',
-  'solar-roof',
-]);
+export const moduleSchema = z.enum(MODULE_KINDS);
 export type BuildingModule = z.infer<typeof moduleSchema>;
-export const moduleKinds: Record<BuildingModule, BuildingKind> = {
-  turbine: 'power',
-  'heat-exchanger': 'power',
-  furnace: 'factory',
-  scrubber: 'factory',
-  'loading-bay': 'warehouse',
-  'solar-roof': 'warehouse',
-};
+export const moduleKinds = Object.fromEntries(
+  Object.entries(MODULES).map(([id, definition]) => [id, definition.kind]),
+) as Record<BuildingModule, BuildingKind>;
 const modulesSchema = z
   .array(moduleSchema)
   .max(2)
@@ -99,6 +98,7 @@ export const worldSchema = z
     buildings: z.array(buildingSchema).max(2500),
     appearances: z.array(appearanceSchema).max(2500),
     citizens: z.array(citizenSchema).max(100),
+    progression: progressionSchema.optional(),
     economy: z
       .object({
         shippedMetal: z
@@ -137,13 +137,22 @@ export const worldSchema = z
       world.buildings.some((b) =>
         b.modules?.some((m) => moduleKinds[m] !== b.type),
       ) ||
+      world.progression?.projects.some((p) =>
+        p.contributors.some(
+          (c) => !world.citizens.some((citizen) => citizen.id === c.citizenId),
+        ),
+      ) ||
+      world.progression?.events.some(
+        (e) => !world.citizens.some((citizen) => citizen.id === e.actorId),
+      ) ||
       (world.economy &&
         (new Set(world.economy.stockpiles.map((s) => s.buildingId)).size !==
           world.economy.stockpiles.length ||
           world.economy.stockpiles.some(
             (s) =>
               !world.buildings.some(
-                (b) => b.id === s.buildingId && b.type === 'warehouse',
+                (b) =>
+                  b.id === s.buildingId && BUILDINGS[b.type].role === 'storage',
               ),
           )))
     ) {

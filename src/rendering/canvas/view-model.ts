@@ -15,6 +15,7 @@ import { revealedTerrain } from '../../domain/city/terrain';
 import { tileKey } from '../../domain/city/model';
 import { buildingStats } from '../../domain/city/catalog';
 import type { BuildingStudy } from './building-layout';
+import type { BuildingPartOverrides } from './buildings';
 import { isRoadCorridor } from '../../domain/city/plots';
 import {
   buildStreets,
@@ -34,8 +35,10 @@ export interface Walker extends Position {
   target?: string;
   route?: string[];
   wait?: number;
+  strollTime?: number;
   trips?: number;
   moving?: boolean;
+  held?: boolean;
   tx: number;
   ty: number;
   phase: number;
@@ -62,6 +65,7 @@ export interface RenderWorld {
   links: RenderLink[];
 }
 export interface RenderFrame extends RenderWorld {
+  partOverrides?: BuildingPartOverrides;
   study?: BuildingStudy;
   preview?: {
     building: RenderBuilding;
@@ -80,6 +84,7 @@ export interface RenderFrame extends RenderWorld {
   grid: boolean;
   hover: Position | null;
   selected: RenderBuilding | null;
+  hoveredBuilding?: RenderBuilding | null;
   citizen: Citizen | null;
   layer: NetworkLayer;
   walkers: Walker[];

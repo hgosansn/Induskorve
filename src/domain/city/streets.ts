@@ -110,8 +110,16 @@ export function buildStreets(
         connect(mid, b, 'sidewalk');
       } else if (road.crossings[i]) connect(a, b, 'crossing');
     });
-    if (!straight || (road.x + road.y) % 2 === 0)
-      layout.lamps.push({ x: road.x + 0.08, y: road.y + 0.08 });
+    if (!straight || (road.x + road.y) % 2 === 0) {
+      const corner = (((road.x * 17 + road.y * 31) % 4) + 4) % 4;
+      const [dx, dy] = [
+        [0.195, 0.195],
+        [0.805, 0.195],
+        [0.805, 0.805],
+        [0.195, 0.805],
+      ][corner]!;
+      layout.lamps.push({ x: road.x + dx!, y: road.y + dy! });
+    }
   }
   // Flat access paths stay outside equipment footprints. The front stopping bay
   // lies in the reserved door approach, ahead of loading cranes and cargo.

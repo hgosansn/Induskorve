@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -23,13 +23,34 @@ import {
 import { MODULES } from '../../domain/city/catalog';
 import { composeBuilding } from '../../rendering/assembly/compose';
 import { validateAssembly } from '../../rendering/assembly/model';
-import { BUILDING_FORMS } from '../../rendering/assembly/building-form';
+import { architectureForms } from '../../rendering/assembly/building-form';
 import {
   ASSEMBLY_LAYERS,
   type AssemblyLayer,
 } from '../../rendering/canvas/building-layout';
 
+const ReusablePartsStudy = lazy(() =>
+  import('./reusable-parts-study').then((m) => ({
+    default: m.ReusablePartsStudy,
+  })),
+);
+
 const families: Record<BuildingKind, { name: string; description: string }> = {
+  residential: {
+    name: 'Apartment block',
+    description:
+      'Homes with recessed windows, balconies and a pedestrian entrance. Uses local power; no factory process or simulated population.',
+  },
+  skyscraper: {
+    name: 'Residential skyscraper',
+    description:
+      'A tall residential shaft on a grounded podium. The optional large screen is mounted on the actual right facade.',
+  },
+  shop: {
+    name: 'Neighborhood shop',
+    description:
+      'A low street-front shop with sheltered glazing and a clear entrance apron. Shop trade is not simulated.',
+  },
   power: {
     name: 'Power station',
     description:
@@ -72,8 +93,10 @@ export function DesignAtlas() {
   const [active, setActive] = useState(true);
   const [stock, setStock] = useState(true);
   const [partId, setPartId] = useState('all');
+  const [isolated, setIsolated] = useState(false);
   const [shape, setShape] = useState<BuildingDesign['shape']>('stepped');
   const [display, setDisplay] = useState(false);
+  const forms = architectureForms(kind);
   const draft = {
     ...defaultDraft,
     kind,
@@ -119,9 +142,16 @@ export function DesignAtlas() {
           >
             <ToggleGroupItem value="assembly">Assembly</ToggleGroupItem>
             <ToggleGroupItem value="wfc">WFC lab</ToggleGroupItem>
+            <ToggleGroupItem value="parts">Reusable parts</ToggleGroupItem>
           </ToggleGroup>
         </DialogHeader>
-        {mode === 'wfc' ? (
+        {mode === 'parts' ? (
+          <div className="min-h-0 overflow-y-auto">
+            <Suspense fallback={<p role="status">Loading parts…</p>}>
+              <ReusablePartsStudy />
+            </Suspense>
+          </div>
+        ) : mode === 'wfc' ? (
           <WfcLab />
         ) : (
           <div className="grid min-h-0 gap-6 overflow-y-auto lg:grid-cols-[1.5fr_1fr]">
@@ -130,10 +160,23 @@ export function DesignAtlas() {
                 draft={draft}
                 active={active}
                 stock={kind === 'warehouse' && stock ? 150 : 0}
-                study={{ focus, exploded, part: part?.id }}
+                study={{
+                  focus,
+                  exploded: isolated && part ? false : exploded,
+                  part: part?.id,
+                  isolate: isolated && !!part,
+                }}
                 className="h-[38dvh] min-h-64 lg:h-[58dvh]"
               />
               <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  disabled={!part}
+                  aria-pressed={isolated && !!part}
+                  onClick={() => setIsolated(!isolated)}
+                >
+                  Part only
+                </Button>
                 <Button
                   variant={exploded ? 'default' : 'outline'}
                   aria-pressed={exploded}
@@ -171,9 +214,13 @@ export function DesignAtlas() {
                 type="single"
                 value={kind}
                 aria-label="Asset family"
+                className="flex-wrap justify-start"
                 onValueChange={(v) => {
                   if (v) {
                     setKind(v as BuildingKind);
+                    setDisplay(v === 'skyscraper');
+                    if (v === 'skyscraper') setShape('tower');
+                    else if (v === 'shop') setShape('block');
                     setPartId('all');
                     setModules(
                       (Object.keys(MODULES) as BuildingModule[]).filter(
@@ -186,6 +233,9 @@ export function DesignAtlas() {
                 <ToggleGroupItem value="power">Power</ToggleGroupItem>
                 <ToggleGroupItem value="factory">Foundry</ToggleGroupItem>
                 <ToggleGroupItem value="warehouse">Freight</ToggleGroupItem>
+                <ToggleGroupItem value="residential">Homes</ToggleGroupItem>
+                <ToggleGroupItem value="skyscraper">Skyscraper</ToggleGroupItem>
+                <ToggleGroupItem value="shop">Shops</ToggleGroupItem>
               </ToggleGroup>
               <div>
                 <h3 className="mb-2 text-xl font-semibold">
@@ -207,12 +257,12 @@ export function DesignAtlas() {
                 >
                   {(['block', 'stepped', 'tower'] as const).map((value) => (
                     <ToggleGroupItem key={value} value={value}>
-                      {BUILDING_FORMS[value].label}
+                      {forms[value].label}
                     </ToggleGroupItem>
                   ))}
                 </ToggleGroup>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  {BUILDING_FORMS[shape].description}
+                  {forms[shape].description}
                 </p>
               </fieldset>
               <div className="space-y-2 border-t border-border pt-4">

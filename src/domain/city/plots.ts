@@ -1,8 +1,8 @@
-import { tileKey, type Position, type WorldSnapshot } from './model';
+import { tileKey, type WorldSnapshot } from './model';
 import { revealedTerrain } from './terrain';
 
-export const isRoadCorridor = ({ x, y }: Position) =>
-  x % 4 === 0 || y % 4 === 0;
+export { isRoad as isRoadCorridor } from '../../../shared/city/terrain';
+import { isRoad as isRoadCorridor } from '../../../shared/city/terrain';
 
 // A narrowly identified founding seed was placed on the origin intersection.
 // Repair its position without deleting a structure or changing its identity.

@@ -12,7 +12,7 @@ jobs:
   build:
     permissions:
       contents: read
-      pages: read
+      pages: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +23,15 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run build
+        env:
+          VITE_CITY_MODE: ${{ vars.VITE_CITY_MODE || 'local' }}
+          VITE_SPACETIMEDB_URI: ${{ vars.VITE_SPACETIMEDB_URI }}
+          VITE_SPACETIMEDB_DATABASE: ${{ vars.VITE_SPACETIMEDB_DATABASE }}
+          VITE_SPACETIMEAUTH_CLIENT_ID: ${{ vars.VITE_SPACETIMEAUTH_CLIENT_ID }}
+          VITE_SPACETIMEAUTH_REDIRECT_URI: ${{ vars.VITE_SPACETIMEAUTH_REDIRECT_URI }}
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

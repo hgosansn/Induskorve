@@ -24,3 +24,9 @@ A temporary headless Edge page loaded the existing localhost Vite app at 1440 ×
 The final browser RAF rate is **not** a claim of 60 city repaints per second: independent counting of the main canvas's three full-frame fills measured about **30.3 ambient paints/second**. The scheduler deliberately leaves headroom for input and other applications. These are short local observations, not GPU utilization measurements, cross-device guarantees or a 2,500-building benchmark.
 
 Browser regression coverage verifies zero idle paints in reduced-motion mode, zero background city paints under dialogs, active preview animation, and correct redraw after dismissal. Existing checks cover placement/reload, seed replay, module changes, outages, mobile cancellation, adverts and close zoom. Projection tests verify cache reuse without stale inventory or network state.
+
+# Pixel presentation and rain
+
+City controls expose independent **Pixel style** and **Rain** switches, enabled by default for this visual pass and kept session-local. The main city is painted to a half-CSS-resolution buffer and enlarged with nearest-neighbor sampling (two CSS pixels per image pixel). React panels, pointer coordinates and inspection overlays retain their normal resolution. This is a pixel presentation of the shared artwork, not a hand-authored replacement pixel-art catalog. Turning Pixel style off restores native canvas resolution.
+
+Rain uses deterministic stepped rectangles and short road-splash samples, with at most 220 falling streaks and no texture downloads. It shares the existing canvas loop: hidden/covered scenes stop, reduced motion freezes the weather, and no independent animation timer is created. Rain is atmospheric artwork, not collision-aware roof runoff or a simulation/economy change. No save or live-server contract is changed.

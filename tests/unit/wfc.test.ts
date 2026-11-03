@@ -61,7 +61,9 @@ describe('experimental WFC stack grammar', () => {
     expect(
       new Set([...power, ...factory, ...freight].map((b) => b.facade)).size,
     ).toBe(5);
-    expect(factory.some((b) => b.roofFinish === 'daylight')).toBe(true);
+    // The production foundry has one explicitly mounted northlight, not
+    // a second scatter of generated miniature rooflights on every terrace.
+    expect(factory.some((b) => b.roofFinish === 'daylight')).toBe(false);
     expect(
       factory.map(({ x, y, floor, front, right, roof }) => ({
         x,

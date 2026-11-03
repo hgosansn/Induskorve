@@ -1,10 +1,28 @@
 import type { StreetTile, StreetLayout } from '../../domain/city/streets';
-import type { Position } from '../../domain/city/model';
 import type { Palette } from '../palette';
 import { createGeometry, iso } from './geometry';
+import {
+  streetHash,
+  streetScenery,
+  type LampFixture,
+  type StreetProp,
+} from './street-scenery';
 
 export function createStreetPainter(ctx: CanvasRenderingContext2D, p: Palette) {
   const { polygon, line } = createGeometry(ctx, p);
+  const pool = document.createElement('canvas');
+  pool.width = 144;
+  pool.height = 72;
+  const lightContext = pool.getContext('2d')!;
+  lightContext.scale(3, 3);
+  lightContext.translate(24, 12);
+  lightContext.scale(1, 0.5);
+  const light = lightContext.createRadialGradient(0, 0, 0, 0, 0, 24);
+  light.addColorStop(0, p.power + '88');
+  light.addColorStop(0.45, p.power + '30');
+  light.addColorStop(1, p.power + '00');
+  lightContext.fillStyle = light;
+  lightContext.fillRect(-24, -24, 48, 48);
   function road(tile: StreetTile) {
     const { x, y, arms, crossings } = tile;
     const rect = (u: number, v: number, w: number, d: number, color: string) =>
@@ -90,34 +108,47 @@ export function createStreetPainter(ctx: CanvasRenderingContext2D, p: Palette) {
           0.55,
         );
     }
-  }
-  function paths(layout: StreetLayout) {
-    ctx.save();
-    ctx.globalAlpha = 0.48;
-    for (const edge of layout.edges)
-      if (edge.kind === 'plot') {
-        const a = layout.nodes.get(edge.a)!,
-          b = layout.nodes.get(edge.b)!;
-        line(iso(a.x, a.y), iso(b.x, b.y), p.steel, 1.7);
-      }
-    ctx.restore();
-  }
-  function lighting(layout: StreetLayout) {
-    for (const lamp of layout.lamps) {
-      const at = iso(lamp.x + 0.3, lamp.y + 0.3);
-      ctx.save();
-      ctx.translate(...at);
-      ctx.scale(1, 0.5);
-      const light = ctx.createRadialGradient(0, 0, 0, 0, 0, 24);
-      light.addColorStop(0, p.power + '70');
-      light.addColorStop(0.45, p.power + '26');
-      light.addColorStop(1, p.power + '00');
-      ctx.fillStyle = light;
-      ctx.fillRect(-24, -24, 48, 48);
-      ctx.restore();
+    const seed = streetHash(x, y, 13);
+    if (seed % 5 === 0) {
+      // Flush service cover, not a navigation obstacle or a raised plaza prop.
+      polygon(
+        Array.from({ length: 12 }, (_, i) =>
+          iso(
+            x + 0.5 + Math.cos((i * Math.PI) / 6) * 0.075,
+            y + 0.5 + Math.sin((i * Math.PI) / 6) * 0.075,
+          ),
+        ),
+        p.ink,
+        p.edge,
+      );
+      for (const off of [-0.03, 0, 0.03])
+        line(
+          iso(x + 0.455, y + 0.5 + off),
+          iso(x + 0.545, y + 0.5 + off),
+          p.surface,
+          0.22,
+        );
+    } else if (seed % 7 === 0) {
+      rect(0.4, 0.43, 0.2, 0.14, p.surface);
+      line(iso(x + 0.41, y + 0.45), iso(x + 0.57, y + 0.45), p.edge, 0.2);
     }
   }
-  return { road, paths, lighting };
+  function lighting(layout: StreetLayout) {
+    for (const lamp of streetScenery(layout).lamps)
+      for (const head of lamp.heads) {
+        const at = iso(lamp.x + head.x, lamp.y + head.y),
+          scale =
+            lamp.kind === 'capped' ? 0.65 : lamp.kind === 'twin' ? 0.85 : 1;
+        ctx.drawImage(
+          pool,
+          at[0] - 24 * scale,
+          at[1] - 12 * scale,
+          48 * scale,
+          24 * scale,
+        );
+      }
+  }
+  return { road, lighting };
 }
 
 // Static luminous fixtures are rasterized once; no per-lamp gradients per frame.
@@ -125,20 +156,131 @@ export function createStreetLampRenderer(
   ctx: CanvasRenderingContext2D,
   p: Palette,
 ) {
-  const image = document.createElement('canvas');
-  image.width = 144;
-  image.height = 144;
-  const target = image.getContext('2d')!;
-  target.scale(3, 3);
-  target.translate(24, 28);
-  const { line, glow } = createGeometry(target, p);
-  line(iso(0, 0), iso(0, 0, 18), p.ink, 1.8);
-  line(iso(0.015, 0, 1), iso(0.015, 0, 18), p['concrete-shadow'], 0.7);
-  line(iso(0, 0, 18), iso(0.3, 0.3, 18), p.steel, 1.6);
-  glow(iso(0.3, 0.3, 18), p.power, 6, 0.25);
-  line(iso(0.23, 0.23, 18), iso(0.37, 0.37, 18), p['concrete-light'], 1.3);
-  return (position: Position) => {
-    const at = iso(position.x, position.y);
+  const cache = new Map<string, HTMLCanvasElement>();
+  const draw = (lamp: LampFixture) => {
+    const key = `${lamp.kind}/${lamp.heads.map((h) => `${h.x},${h.y}`).join('/')}`;
+    let image = cache.get(key);
+    if (!image) {
+      image = document.createElement('canvas');
+      image.width = 144;
+      image.height = 144;
+      const target = image.getContext('2d')!;
+      target.scale(3, 3);
+      target.translate(24, 28);
+      const g = createGeometry(target, p),
+        height = lamp.height;
+      g.box(-0.022, -0.022, 0.044, 0.044, 0, 0.45, g.dark);
+      g.box(-0.009, -0.009, 0.018, 0.018, 0.45, height - 0.45, g.steel);
+      for (const head of lamp.heads) {
+        g.line(
+          iso(0, 0, height - 0.7),
+          iso(head.x, head.y, height),
+          p.ink,
+          1.0,
+        );
+        g.line(
+          iso(0, 0, height - 0.65),
+          iso(head.x, head.y, height),
+          p['concrete-shadow'],
+          0.45,
+        );
+        if (lamp.kind === 'capped') {
+          g.box(-0.045, -0.045, 0.09, 0.09, height - 0.9, 0.6, g.dark);
+          g.line(
+            iso(-0.03, 0.04, height - 0.45),
+            iso(0.03, 0.04, height - 0.45),
+            p['concrete-light'],
+            0.7,
+          );
+        } else {
+          g.box(
+            head.x - 0.035,
+            head.y - 0.025,
+            0.07,
+            0.05,
+            height - 0.65,
+            0.5,
+            g.dark,
+          );
+          g.line(
+            iso(head.x - 0.025, head.y + 0.023, height - 0.62),
+            iso(head.x + 0.025, head.y + 0.023, height - 0.62),
+            p['concrete-light'],
+            0.7,
+          );
+        }
+        g.glow(iso(head.x, head.y, height - 0.45), p.power, 4, 0.18);
+      }
+      cache.set(key, image);
+    }
+    const at = iso(lamp.x, lamp.y);
     ctx.drawImage(image, at[0] - 24, at[1] - 28, 48, 48);
   };
+  return Object.assign(draw, {
+    stats: () => ({
+      sprites: cache.size,
+      rgbaBytes: cache.size * 144 * 144 * 4,
+    }),
+  });
+}
+
+export function createStreetPropRenderer(
+  ctx: CanvasRenderingContext2D,
+  p: Palette,
+) {
+  const cache = new Map<string, HTMLCanvasElement>();
+  const draw = (prop: StreetProp) => {
+    const key = `${prop.kind}/${prop.kind === 'route-post' && (prop.corner === 1 || prop.corner === 3) ? 1 : 0}`;
+    let image = cache.get(key);
+    if (!image) {
+      image = document.createElement('canvas');
+      image.width = 96;
+      image.height = 96;
+      const target = image.getContext('2d')!;
+      target.scale(3, 3);
+      target.translate(16, 20);
+      const g = createGeometry(target, p);
+      if (prop.kind === 'cabinet') {
+        g.box(-0.022, -0.022, 0.044, 0.044, 0, 0.35, g.concrete);
+        g.box(-0.019, -0.019, 0.038, 0.038, 0.35, 3.8, g.steel);
+        g.line(iso(-0.012, 0.02, 0.8), iso(-0.012, 0.02, 3.65), p.ink, 0.17);
+        g.line(
+          iso(0.004, 0.021, 2.4),
+          iso(0.012, 0.021, 2.4),
+          p.concrete,
+          0.25,
+        );
+        g.line(iso(-0.013, 0.021, 3.3), iso(0.013, 0.021, 3.3), p.edge, 0.18);
+      } else if (prop.kind === 'bollard') {
+        g.box(-0.016, -0.016, 0.032, 0.032, 0, 0.24, g.dark);
+        g.box(-0.009, -0.009, 0.018, 0.018, 0.24, 2.2, g.steel);
+        g.box(-0.01, -0.01, 0.02, 0.02, 1.85, 0.25, g.concrete);
+      } else {
+        g.box(-0.014, -0.014, 0.028, 0.028, 0, 0.25, g.dark);
+        g.box(-0.006, -0.006, 0.012, 0.012, 0.25, 10.2, g.steel);
+        const mirrored = prop.corner === 1 || prop.corner === 3;
+        g.box(
+          mirrored ? -0.01 : -0.065,
+          mirrored ? -0.065 : -0.01,
+          mirrored ? 0.02 : 0.13,
+          mirrored ? 0.13 : 0.02,
+          9,
+          1.5,
+          g.dark,
+        );
+        g.line(
+          iso(mirrored ? 0.012 : -0.05, mirrored ? -0.05 : 0.012, 9.75),
+          iso(mirrored ? 0.012 : 0.05, mirrored ? 0.05 : 0.012, 9.75),
+          p.concrete,
+          0.35,
+        );
+      }
+      cache.set(key, image);
+    }
+    const at = iso(prop.x, prop.y);
+    ctx.drawImage(image, at[0] - 16, at[1] - 20, 32, 32);
+  };
+  return Object.assign(draw, {
+    stats: () => ({ sprites: cache.size, rgbaBytes: cache.size * 96 * 96 * 4 }),
+  });
 }

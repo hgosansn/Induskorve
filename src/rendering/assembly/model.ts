@@ -20,6 +20,7 @@ export interface BuildingStudy {
   exploded: boolean;
   focus: AssemblyLayer;
   part?: string;
+  isolate?: boolean;
 }
 export interface AssemblyInput {
   type: BuildingKind;
@@ -53,6 +54,9 @@ export type PartKind =
   | 'furnace'
   | 'stack'
   | 'scrubber'
+  | 'plenum'
+  | 'duct-support'
+  | 'hatch'
   | 'skylights'
   | 'solar'
   | 'gantry'
@@ -93,7 +97,54 @@ export interface Route {
   from: string;
   to: string;
   service: Service;
+  diameter?: number;
   points: [number, number, number][];
+}
+
+// Shared solid recipe for validation and artwork, including exhaust flanges
+// and elbows. Supports may touch the underside but cannot enter these solids.
+export function routeSolids(route: Route): Volume[] {
+  const width = route.diameter ?? 0.12;
+  const solids: Volume[] = [];
+  for (let i = 1; i < route.points.length; i++) {
+    const a = route.points[i - 1]!,
+      b = route.points[i]!;
+    const axis = a.findIndex((v, j) => Math.abs(v - b[j]!) > 1e-6);
+    if (axis < 0) continue;
+    const section = (from: number[], to: number[], diameter: number) => {
+      const low = from.map((v, j) =>
+        Math.abs(v - to[j]!) > 1e-6 ? Math.min(v, to[j]!) : v - diameter / 2,
+      );
+      const size = from.map((v, j) =>
+        Math.abs(v - to[j]!) > 1e-6 ? Math.abs(v - to[j]!) : diameter,
+      );
+      solids.push(
+        volume(low[0]!, low[1]!, low[2]!, size[0]!, size[1]!, size[2]!),
+      );
+    };
+    section(a, b, width);
+    if (route.service !== 'exhaust') continue;
+    for (const [start, end] of [
+      [a, b],
+      [b, a],
+    ]) {
+      const tip = [...start!];
+      tip[axis] = tip[axis]! + Math.sign(end![axis]! - start![axis]!) * 0.07;
+      section(start!, tip, width + 0.1);
+    }
+    if (i < route.points.length - 1)
+      solids.push(
+        volume(
+          b[0] - width / 2,
+          b[1] - width / 2,
+          b[2] - width / 2,
+          width,
+          width,
+          width,
+        ),
+      );
+  }
+  return solids;
 }
 export interface BuildingAssembly {
   family: BuildingKind;
@@ -241,25 +292,8 @@ export function validateAssembly(a: BuildingAssembly): string[] {
         end = r.points[i]!;
       if (start.filter((v, j) => Math.abs(v - end[j]!) > EPS).length !== 1)
         errors.push(`${r.id}: non-axial route`);
-      const segment = volume(
-        Math.min(start[0], end[0]),
-        Math.min(start[1], end[1]),
-        Math.min(start[2], end[2]),
-        Math.abs(end[0] - start[0]),
-        Math.abs(end[1] - start[1]),
-        Math.abs(end[2] - start[2]),
-      );
-      // Thin centreline test, expanded on its two cross axes to cover the pipe.
-      const pipe = { ...segment };
-      for (const [axis, size] of [
-        ['x', 'w'],
-        ['y', 'd'],
-        ['z', 'h'],
-      ] as const)
-        if (pipe[size] === 0) {
-          pipe[axis] -= 0.06;
-          pipe[size] = 0.12;
-        }
+    }
+    for (const pipe of routeSolids(r)) {
       for (const p of a.parts)
         if (p.solids.some((s) => intersects(s, pipe)))
           errors.push(`${r.id}: pipe enters ${p.id}`);

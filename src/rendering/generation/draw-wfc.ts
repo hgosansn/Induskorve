@@ -14,6 +14,7 @@ export interface WfcView {
   bays?: GeneratedBay[];
   roofOccupied?: Set<number>;
   loading?: boolean;
+  foundry?: boolean;
   afterBay?: (bay: GeneratedBay) => void;
 }
 
@@ -108,8 +109,11 @@ export function paintWfcKit(
     const { x, y, floor: z } = bay;
     const top = z + 1;
     const actualRoof = top === building.heights[x + y * building.size];
+    let recess = 0;
     function face(right: boolean, u: number, v: number): Point {
-      return right ? [x + 1, y + u, z + v] : [x + u, y + 1, z + v];
+      return right
+        ? [x + 1 - recess, y + u, z + v]
+        : [x + u, y + 1 - recess, z + v];
     }
     function panel(
       right: boolean,
@@ -131,6 +135,8 @@ export function paintWfcKit(
     }
     for (const right of [false, true]) {
       if (!(right ? bay.right : bay.front) && !view.structure) continue;
+      const skinDepth = view.foundry ? 0.075 : 0.065;
+      recess = !view.structure ? skinDepth : 0;
       if (!view.structure) {
         panel(
           right,
@@ -152,6 +158,21 @@ export function paintWfcKit(
             (view.loading && z === 0 && y === 4 && x > 0 && x < 4))
         ) {
           panel(right, 0.27, 0.73, 0.03, 0.78, p.ink);
+          // Recessed shutter/personnel opening belongs to the ground bay.
+          for (const u of [0.25, 0.73])
+            panel(right, u, u + 0.025, 0.03, 0.8, p['concrete-shadow']);
+          if (view.loading) {
+            for (let v = 0.12; v < 0.73; v += view.fine === false ? 0.2 : 0.1)
+              panel(right, 0.3, 0.7, v, v + 0.025, p.steel);
+          } else {
+            line(face(right, 0.5, 0.06), face(right, 0.5, 0.73), p.steel, 0.9);
+            line(
+              face(right, 0.55, 0.4),
+              face(right, 0.6, 0.4),
+              p.concrete,
+              0.8,
+            );
+          }
           line(
             face(right, 0.27, 0.8),
             face(right, 0.73, 0.8),
@@ -233,6 +254,66 @@ export function paintWfcKit(
           );
         }
       }
+      if (!view.structure) {
+        // Deep bay reveals: the skin is recessed inside the existing stack,
+        // while the load-bearing edge stays on its validated exterior surface.
+        for (const u of [0.1, 0.9]) {
+          const inner0 = face(right, u, 0.12),
+            inner1 = face(right, u, 0.93);
+          recess = 0;
+          polygon(
+            [face(right, u, 0.12), face(right, u, 0.93), inner1, inner0],
+            u < 0.5 ? p.ink : p['concrete-shadow'],
+          );
+          recess = skinDepth;
+        }
+        recess = 0;
+        for (const v of [0.13, 0.94]) {
+          const outer0 = face(right, 0.1, v),
+            outer1 = face(right, 0.9, v);
+          recess = skinDepth;
+          polygon(
+            [outer0, outer1, face(right, 0.9, v), face(right, 0.1, v)],
+            v < 0.5 ? p['concrete-shadow'] : p.ink,
+          );
+          recess = 0;
+        }
+        for (const u of [0.01, 0.91]) {
+          panel(
+            right,
+            u,
+            u + 0.08,
+            0.08,
+            0.96,
+            right ? p.steel : p['concrete-shadow'],
+          );
+          line(face(right, u, 0.1), face(right, u, 0.94), p.edge, 0.55);
+        }
+        // Thick shelf edges and a dark underside make terraces read as slabs.
+        panel(right, 0, 1, 0.09, 0.13, p.ink);
+        if (view.fine !== false) {
+          for (const u of [0.055, 0.95])
+            for (const v of [0.18, 0.86])
+              line(
+                face(right, u, v),
+                face(right, u + 0.022, v),
+                p.concrete,
+                0.85,
+              );
+          // Folded head flashing; small amber inspection lamps follow actual power.
+          panel(right, 0.11, 0.89, 0.89, 0.935, p.steel);
+          if (bay.facade !== 'glazing' && bay.lit)
+            panel(
+              right,
+              0.36,
+              0.64,
+              0.895,
+              0.916,
+              view.lights ? accent : p.ink,
+            );
+        }
+      }
+      recess = 0;
       panel(right, 0, 1, 0, 0.09, p['concrete-shadow']);
       panel(
         right,
@@ -298,15 +379,19 @@ export function paintWfcKit(
               0.7,
             );
         } else {
-          polygon(
-            [
-              [x + 0.16, y + 0.16, top + 0.01],
-              [x + 0.84, y + 0.16, top + 0.01],
-              [x + 0.84, y + 0.84, top + 0.01],
-              [x + 0.16, y + 0.84, top + 0.01],
-            ],
+          // Flat sealed roof skin. The actual northlight is an assembly part;
+          // these are drainage seams, not a scatter of miniature roof machines.
+          line(
+            [x + 0.08, y + 0.12, top + 0.002],
+            [x + 0.92, y + 0.12, top + 0.002],
             p.steel,
-            p.edge,
+            0.65,
+          );
+          line(
+            [x + 0.12, y + 0.08, top + 0.002],
+            [x + 0.12, y + 0.92, top + 0.002],
+            p.steel,
+            0.65,
           );
         }
       }
@@ -327,7 +412,10 @@ export function paintWfcKit(
             0.85,
           );
         }
-      if (bay.core) {
+      if (
+        bay.core &&
+        (!actualRoof || !view.roofOccupied?.has(x + y * building.size))
+      ) {
         // The stair landing remains visible in a section through the core.
         for (let step = 0; step < 5; step++)
           line(

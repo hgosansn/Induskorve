@@ -1,6 +1,15 @@
 node_modules
+src/infrastructure/spacetimedb/module-bindings/
 dist
 coverage
 playwright-report
 test-results
 package-lock.json
+asset-studies/mesh-pilot/runs/
+asset-studies/parts-batch-*/
+asset-studies/foundry/integration-*/
+asset-studies/current-kit-01/
+asset-studies/streets-01/
+asset-studies/civic-01/
+asset-studies/ground-01/
+asset-studies/pedestrians-02/

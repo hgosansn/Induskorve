@@ -1,12 +1,20 @@
 # Architecture
 
+## Persistent actions and live server
+
+See [persistent actions](persistent-actions.md) for durable world/profile state, transient presence, local-only interactions, permissions and retries. `shared/city` owns SDK-independent content and the live protocol consumed by both sides. `spacetimedb/src/authority.ts` contains pure bigint planners; `reducer-foundation.ts` typechecks receipt adapters against the SDK. Actual reducers, generated SDK bindings, SpacetimeAuth and live store/read-model adapters are implemented and verified against an isolated server. Hosted configuration is pending. See [SpacetimeDB foundation](spacetimedb.md).
+
+## Guided gameplay and extensible content
+
+The city guide, contribution forecasts, project funding, technology capabilities and attributed history consume shared domain definitions. See [gameplay foundation](gameplay-foundation.md) for the implemented local loop, extension contracts, save compatibility and the multiplayer boundary.
+
 ## Dependency direction
 
 ```text
 React features → application → domain
 Canvas scene → render projection → domain
 Browser persistence → application repository port
-Future SpacetimeDB adapter → live application port
+SpacetimeDB SDK adapter → live application port
 ```
 
 The domain imports only Zod. It has no React, Canvas, storage, networking or styling dependencies. Commands enforce local spectator gating, occupancy and revealed-ground rules. Storage effects belong to the repository. UI compositions invoke commands and report errors through Sonner.

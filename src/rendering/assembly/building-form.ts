@@ -1,4 +1,6 @@
 import type { AssemblyInput } from './model';
+import { isCivicKind, type BuildingKind } from '../../domain/city/model';
+import { civicBuildingForm } from './civic';
 
 export const BUILDING_FORMS = {
   block: {
@@ -18,6 +20,31 @@ export const BUILDING_FORMS = {
   },
 } as const;
 
+export function architectureForms(kind: BuildingKind) {
+  if (!isCivicKind(kind)) return BUILDING_FORMS;
+  const names =
+    kind === 'shop'
+      ? ['Single shop', 'Shop row', 'Corner shop']
+      : kind === 'skyscraper'
+        ? ['Wide podium', 'Stepped crown', 'Slender shaft']
+        : ['Apartment block', 'Terraced homes', 'Apartment tower'];
+  return Object.fromEntries(
+    (['block', 'stepped', 'tower'] as const).map((shape, i) => [
+      shape,
+      {
+        label: names[i]!,
+        description:
+          kind === 'shop'
+            ? 'A low shopfront with a sheltered entrance and a clear pedestrian apron.'
+            : 'Occupied floors sit above a continuous grounded podium; windows and terraces follow the building structure.',
+      },
+    ]),
+  ) as Record<
+    keyof typeof BUILDING_FORMS,
+    { label: string; description: string }
+  >;
+}
+
 // Saved shape values stay compatible. Legacy buildings get all three families.
 export function buildingShape(b: AssemblyInput) {
   return (
@@ -28,6 +55,7 @@ export function buildingShape(b: AssemblyInput) {
 
 /** One floorplan contract for hall proportions, equipment bays and pipe lanes. */
 export function buildingForm(b: AssemblyInput) {
+  if (isCivicKind(b.type)) return civicBuildingForm(b);
   const shape = buildingShape(b);
   const variation = (Math.round(b.variant * 10000) % 101) / 100;
   const freight = b.type === 'warehouse';

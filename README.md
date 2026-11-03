@@ -1,88 +1,92 @@
 # Induskorve
 
-An isometric industrial city with interdependent infrastructure. The current app is a **browser-local prototype** with a production-oriented frontend foundation. Authentication and shared multiplayer are not implemented yet.
+**An industrial city, built one contribution at a time.**
 
-## Develop
+Explore a rain-soaked isometric district of foundries, tangled power lines, glowing screens and small street lives. Restore a useful connection, expand production, fund the next city project—and leave something behind.
 
-Use Node.js 24 LTS (`.nvmrc`) and npm.
+![Induskorve at night, with pixel rain and warm streetlights](docs/images/city-nocturne.jpg)
+
+**[Play the prototype](https://hgosansn.github.io/Induskorve/)** · [How it works](docs/gameplay-foundation.md) · [Run locally](#run-locally)
+
+## A city worth looking into
+
+- **One continuous city.** Pan and zoom from the skyline to a factory apron. Construction reveals nearby ground and grows an irregular city outline.
+- **Useful contributions.** Inspect shortages, forecast changes, place buildings and retrofit machinery. Power, storage, production and heat recovery follow explicit local rules.
+- **Projects with a purpose.** Contribute stored metal to unlock pooled funding and coordinated dispatch. Accepted actions retain contribution attribution.
+- **A mixed skyline.** Modular industrial halls, apartments, residential skyscrapers and small shops share the streets. Animated adverts occupy real building facades.
+- **Small street lives.** Faceless pedestrians stroll, pause and cross at designated crossings. Click to inspect a character; drag your own pedestrian to a nearby path.
+- **Industrial nocturne.** Pixel rendering, rain, amber lights, cyan displays and warm furnace accents. Switch Pixel style and Rain independently under **City**; reduced motion freezes ambient animation.
+
+![Street detail with machinery, homes, shops and facade screens](docs/images/streets-and-screens.jpg)
+
+## Try the contribution loop
+
+Start as a spectator. Open **City projects** to explore the district's needs, projects and history. **Join city** unlocks contribution controls and gives you a local character. Preview the effect of a change before confirming it, then inspect the result.
+
+![City projects showing material funding and technology unlocks](docs/images/city-projects.jpg)
+
+| Action                        | Control                                       |
+| ----------------------------- | --------------------------------------------- |
+| Move around                   | Drag the city background                      |
+| Zoom                          | Mouse wheel or City controls                  |
+| Inspect a building            | Click its ground square                       |
+| Inspect a pedestrian          | Click near the character                      |
+| Move your pedestrian          | Drag and drop near a sidewalk or entrance     |
+| Build                         | Join → Contribute → preview → choose location |
+| Cancel placement or selection | Escape; right-click also cancels placement    |
+| Explore the artwork           | City → Design atlas                           |
+
+## Prototype status
+
+**The public prototype runs in browser-local mode.** Your city, identity and contributions are saved in that browser. Local production runs while joined and visible and pauses when you leave. Construction and feedstock are currently free. Ambient pedestrians are scenery, not online players. Residents, rent and shop commerce are not simulated.
+
+The long-term direction is one persistent city shared by strangers. SpacetimeDB reducers, synchronized state, creator permissions and SpacetimeAuth integration are implemented and tested against an isolated real server. Hosted multiplayer and external sign-in still require project configuration and acceptance. See [live integration](docs/spacetimedb.md); the local demo does not imply an active multiplayer service.
+
+All screenshots above come from the running prototype. Reference art and experimental mesh studies are authoring materials, excluded from release output.
+
+## Run locally
+
+Use **Node.js 24** and npm:
 
 ```sh
 npm ci
 npm run dev
 ```
 
+Open the localhost URL printed by Vite. Check and build with:
+
 ```sh
-npm run check       # lint, frontend/server types, domain tests, formatting
-npm run build       # production bundle in dist/
+npm run check
+npm run build
 npm run preview
+```
+
+For browser tests:
+
+```sh
 npx playwright install chromium
 npm run test:e2e
 ```
 
-## Structure
+`npm run test:live` additionally requires SpacetimeDB CLI/server 2.13.0 and creates isolated test databases. See [setup](docs/spacetimedb.md).
 
-```text
-src/
-  app/                      # Theme and application-level error handling
-  application/              # Commands, Zustand store, repository/live ports
-  domain/city/              # Validated entities, catalog, networks, terrain
-  features/city/            # React compositions for city interactions
-  components/ui/            # Official shadcn/ui primitives
-  infrastructure/
-    persistence/            # Versioned browser saves and migration
-    spacetimedb/            # Validated wire contracts and lossless live IDs
-  rendering/canvas/         # Scene, projection, pedestrians, procedural artwork
-  lib/                      # Shared shadcn utilities
-spacetimedb/src/             # Isolated, typechecked server schema
-public/                     # Static files
-tests/                     # Domain and browser tests
-docs/                      # Architecture, deployment and integration guides
-.github/workflows/          # Quality checks and Pages deployment
-```
+## Inside the project
 
-React 19 handles the UI; Canvas 2D preserves the approved artwork. Tailwind 4, shadcn/ui and Radix provide styling and accessible controls. Motion uses LazyMotion and respects reduced motion. Zod validates saves/transport; Zustand handles changes outside the frame loop. See [architecture](docs/architecture.md).
+React 19, strict TypeScript, Vite, Tailwind 4, shadcn/ui, Zustand and Zod support the Canvas 2D renderer. Buildings share deterministic assemblies, declared service ports and mounting/clearance checks. Static artwork is cached; animated systems share visibility and reduced-motion controls.
 
-## GitHub Pages
+| Area                                | Location                                           |
+| ----------------------------------- | -------------------------------------------------- |
+| Rules and shared content            | `src/domain/city/`, `shared/city/`                 |
+| Commands and state                  | `src/application/`                                 |
+| Contribution and inspection UI      | `src/features/city/`                               |
+| Building kit and rendering          | `src/rendering/assembly/`, `src/rendering/canvas/` |
+| Live gateway and generated bindings | `src/infrastructure/spacetimedb/`                  |
+| Authoritative live module           | `spacetimedb/src/`                                 |
 
-The workflow builds/uploads `dist/` on pushes to `main`. Relative asset URLs support `/Induskorve/` and custom domains. Select **GitHub Actions** in **Settings → Pages** once; initial activation needs admin access. See [deployment](docs/deployment.md).
+Read more: [architecture](docs/architecture.md), [persistent actions](docs/persistent-actions.md), [building assemblies](docs/building-assemblies.md), [streets](docs/streets.md), [rendering performance](docs/render-performance.md), [art iteration](docs/asset-iteration.md).
 
-## Saves
+## Saves and deployment
 
-Existing `onecity-v2` cities migrate to `induskorve:city:v3` on the next saved action. The old key remains intact. Entities and appearances persist separately. Invalid saves remain untouched and show a temporary-session warning. Changing hosts still changes browser storage origin.
+Existing `onecity-v2` saves migrate to `induskorve:city:v3` on the next saved action. Invalid saves are preserved. A different hostname has separate storage; your localhost city does not automatically transfer to the hosted prototype.
 
-## SpacetimeDB preparation
-
-The isolated server workspace defines structures, appearances, citizens, presence, terrain, networks, inventory, media, events and private server state. It is typechecked against the official SDK. It has **no write reducers and is not published or connected**. See [contracts and integration steps](docs/spacetimedb.md).
-
-## Current boundaries
-
-- Names provide local editing convenience, not authentication. Joined local citizens may operate structures; there is no demolition action.
-- Local production advances every 10 seconds while joined and visible. Foundries fill warehouse stockpiles, stop at capacity, and resume after dispatch. Raw feedstock is unlimited; mining, fuel and construction costs are future work.
-- Ambient walkers are visual agents, not real users.
-- Local billboard uploads accept PNG/JPEG/WebP/GIF up to 1.5 MB. Animated GIF playback is not guaranteed by Canvas.
-- Building geometry, terrain and render layout use strict TypeScript. The remaining scene artwork (adverts, connections and pedestrians) is JavaScript behind a typed boundary.
-- Public multiplayer, server operations, abuse controls and production load acceptance remain future work.
-
-## Building workshop
-
-After joining, use **Add building** to choose purpose, functional modules, architecture, height, balcony and optional facade display. The workshop renders the configuration before **Choose location** activates its ghost. Click revealed empty ground to place one building; Escape/right-click cancels. **City** contains camera, network and session controls; the bottom of the canvas stays clear. Appearance settings are optional in existing saves and persist separately from simulation entities.
-
-## Daily contribution experiment
-
-Run `npm run dev`, then open **`/playtest.html`** on that development server to try a separate six-plot scenario (for the current preview: `http://127.0.0.1:4174/playtest.html`). The playtest is a standalone development page with no entry in the city controls. Release builds include only `index.html`; neither the playtest HTML nor its JavaScript is emitted into `dist/`, and the build rejects accidental imports of the playtest runtime into the product. Switch between Mira, Ivo and Sol (local test participants), choose **Place**, **Expand** or **Connect**, inspect the forecast and confirm for one energy. Each participant begins with one energy, regenerates one per 24 game hours and banks up to three. Shape selection and plot selection show the actual building ghost; Escape/right-click cancels the draft.
-
-**Run clock** advances one game hour per real second. **+1 hour** and **+1 day** allow controlled tests; the clock pauses when the document is hidden or you leave the playtest page. There is deliberately no wall-clock/offline catch-up. Automatic production and freight supply a 160-material public terminal, which adds 24 freight capacity per day on completion. Power shortages, full storage, attribution and lost output are visible. Export the run as JSON to compare experiments.
-
-Progress uses `induskorve:daily-playtest:v1`, independently of the city save. Invalid playtest data is preserved until an explicit reset. Balance is experimental: free construction, unlimited feedstock, fixed compatible routes and three switchable participants. This is not multiplayer or the final economy; generator/handling stages use the existing machinery artwork rather than a new physical part catalog. See the experiment contract in [architecture](docs/architecture.md#daily-contribution-playtest).
-
-## Composable industry and visual language
-
-Buildings use constrained assemblies: generator halls with ground-mounted cooling cells, foundries with side extraction, and storage halls with clear loading aprons. Each piece snaps to a reserved mounting bay with a support, occupied volume and purpose. Functional modules live on domain entities; silhouettes, finish and displays remain in appearance records. Existing structures can be retrofitted from the inspector. Turbines add capacity; heat recovery supplies a nearby connected foundry; furnaces raise demand/output; scrubbers reduce the visible operating footprint; loading bays add connections/storage; solar roofs lower warehouse grid demand.
-
-The placement ghost forecasts its power/storage status and links before construction. Copper pipes indicate recovered heat, yellow suspended wires carry electricity, and blue dots indicate logistics. Warehouse stacks reflect stored metal. Ground tint reflects current emissions, not persistent environmental damage or a pollution penalty.
-
-`src/app/palette.css` is the sole authored color source for Tailwind and Canvas, including pedestrians, adverts, semantic accents and terrain. `src/rendering/palette.ts` resolves those CSS tokens at renderer creation. Reload after editing palette values. The interface uses square corners, thin borders and flat surfaces, including dialogs, notifications and native controls.
-
-Open **City → Design atlas** to study each building assembled or with its layers separated. Isolate layers or individual parts, read why each part exists and what supports it, and toggle equipment and operating state. Architecture controls vary the hall setbacks and control core; facade displays sit on a backed right-side panel. Upper floors have deterministic lit/dark windows and exposed frames. The Atlas and workshop use the actual city renderer. Atlas controls are temporary and do not change the city or its saved data. See [visual direction and references](docs/art-direction.md).
-
-The [building assembly contract](docs/building-assemblies.md) defines the process-first workflow, mounting and clearance rules, functional references, verification and current geometric limits.
+GitHub Actions checks and builds the app, then publishes `dist/` to GitHub Pages on pushes to `main`. Release output excludes playtest and asset-review pages. `/playtest.html` remains a development-only experiment with its own save namespace. See [deployment](docs/deployment.md).

@@ -1,6 +1,6 @@
 # Induskorve — agent handover
 
-Updated: 2026-10-30. This file captures the product direction and decisions from the founding conversation. Read it before changing the experience. Distinguish implemented prototype behavior from proposed future simulation rules.
+Updated: 2026-11-01. This file captures the product direction and decisions from the founding conversation. Read it before changing the experience. Distinguish implemented prototype behavior from proposed future simulation rules.
 
 ## Current engineering foundation (2026-10-28)
 
@@ -11,12 +11,16 @@ This section supersedes historical implementation/layout/run instructions below.
 - `docs/index.html` was replaced by the built app. Use Node 24, `npm ci`, `npm run dev`; builds go to `dist/`.
 - Preserve saves: `onecity-v2` migrates to namespaced version 3 without deletion. Invalid saved data must not be overwritten by a fresh city.
 - Verification: `npm run check`, `npm run build`, `npm run test:e2e`. Pages deploys dist on main. Pages activation and effective protections remain external settings to verify separately.
-- `spacetimedb/src/index.ts` is a typechecked schema workspace only; no reducers, published database or live multiplayer. See `docs/spacetimedb.md`.
+- Live integration (2026-11-01): actual SpacetimeDB 2.13.0 schema/reducers/private schedule, generated SDK bindings, live gateway/store/read model and SpacetimeAuth code+PKCE wiring are implemented. Two SDK clients and browser sessions pass against a real isolated server. Hosted deployment and external sign-in acceptance await public project configuration. Default mode stays local; explicit live mode never reads/writes local city saves or falls back to local editing. See `docs/spacetimedb.md` and `npm run test:live`.
+- Persistence foundation (2026-11-01): `shared/city` owns common catalogs/IDs, action lifetimes, strict bigint live commands and canonical keys. `spacetimedb/src/authority.ts` supplies tested pure admission/permission/transfer planners; `reducer-foundation.ts` typechecks SDK receipt adapters. Schema includes project/contribution/unlock records, private receipts/cursors and last-seen markers. Actual endpoints, schedule, generated bindings and live connection now exist; see the live integration note above. Read `docs/persistent-actions.md` before changing shared permissions, retries or persistent state. Do not confuse the local pilot's permissive editing with the creator-protected live contract.
 - Generic controls come from shadcn/ui. Do not create a parallel design system.
-- Remaining adverts, connections and pedestrian artwork stay in isolated JS behind `artwork.d.ts`; geometry, buildings, terrain and other application code use TypeScript. Do not claim full artwork type coverage or production readiness.
+- Adverts, connections and orchestration remain in isolated JS behind `artwork.d.ts`; pedestrian routing/artwork, street scenery, geometry, buildings and terrain use TypeScript. Do not claim full artwork type coverage or production readiness.
 
 ## Current product changes (2026-10-28, supersedes historical art/service notes)
 
+- Guided contribution foundation (2026-11-01): City projects is inspectable as a spectator; joining opens Contribute with Needs/Projects/History. Catalogs in `domain/city/catalog.ts`, `exchanges.ts` and `technology.ts` drive building roles, compatible ports, module effects, project costs and technology prerequisites. Pure `applyCityCommand` powers forecasts and confirmation. Local project funding conserves metal, attributes contributions and unlocks pooled funding followed by coordinated dispatch. Optional progression v1 extends city save v3; legacy/corrupt save protections remain. History retains the latest 120 accepted actions. See `docs/gameplay-foundation.md`. No live multiplayer, offline production, construction costs, daily allowance or rail simulation was added to the founding city.
+
+- Civic kit (2026-10-30): `residential`, `skyscraper` and `shop` join the three industrial kinds in saves, workshop, ghost placement, inspector and Atlas. Native civic assemblies/rendering live in `assembly/civic.ts` and `canvas/civic-buildings.ts`. They consume 4/10/3 power units respectively, without freight, output, pollution or industry modules. Residents/rent/trade are not simulated. Skyscrapers default to a large animated right-wall display on a single actual shaft face. New-city generation includes a town quarter; never convert existing saved districts automatically. See `docs/civic-buildings.md`.
 - User asked to work directly on `main` after PR #1 was merged. Respect existing protections; do not create new PRs by default.
 - Minimal, brutalist direction: square UI, flat panels, charcoal/concrete and restrained role accents. `src/app/palette.css` is the only authored color source, consumed by Tailwind and Canvas. No scattered hex values or arbitrary color utilities.
 - Building entities carry optional validated functional modules; appearances retain shape, height, balcony and display. The old `stacks` appearance field is retained for save compatibility but exhaust geometry now follows machinery.
@@ -26,7 +30,7 @@ This section supersedes historical implementation/layout/run instructions below.
 - Keep workshop → forecast ghost → placement and an empty bottom UI. Forecast uses the same network rules as placement.
 - Foundations now follow hall and equipment contact solids; no raised whole-plot slab. Streets use one derived topology in `domain/city/streets.ts` for asphalt arms, curbs, zebra crossings and pedestrian paths. Buildings on old road coordinates cap those roads without moving saved structures. Walkers use sidewalks/crossings and flat plot access paths, with pauses at front aprons and preference for their own plots. Streetlights are ambient public fixtures, with cached ground light pools; they do not yet consume simulated electricity. See `docs/streets.md`.
 - The visual direction is Industrial nocturne: engineered dark ground, ground-mounted cooling cells, sawtooth foundries with side extraction and clear freight aprons. Reference study and acceptance criteria live in `docs/art-direction.md`; no reference images are shipped.
-- **City → Design atlas** previews the same assets assembled, separated by layer, with equipment and operating-state controls. Atlas state never writes to the city. Its part selector explains function and support. `geometry.ts`, `building-layout.ts`, `buildings.ts` and `terrain-art.ts` are typed; the remaining adverts, connections and pedestrians stay in isolated `artwork.js`.
+- **City → Design atlas** previews the same assets assembled, separated by layer, with equipment and operating-state controls. Atlas state never writes to the city. Its part selector explains function and support. Geometry, buildings, terrain, pedestrian artwork and street scenery are typed; adverts, connections and orchestration remain in isolated `artwork.js`.
 
 ## Daily loop experiment (2026-10-30)
 
@@ -261,6 +265,12 @@ Prior environment blockers (not architectural requirements):
 - Never request tokens/passwords in chat or commit credentials.
 
 ## Verification and next-agent priorities
+
+For single-asset improvement requests, use `docs/asset-iteration.md`: freeze one recipe, capture baseline, generate and critique a reference, edit the actual shared renderer, recapture identically and record remaining defects. Focus on the one camera visible in the city: operating, idle, close and small-scale views. The local `asset-study.html` tool keeps geometry diagnostics optional for specific fit questions. Rear artwork and turntables are outside this workflow. Keep research images outside shipped runtime assets.
+
+The user requested per-pass self-ratings: score roof logic, process/connection clarity, support/access and richness separately, explaining the visible evidence and remaining weak points. Fix functional ambiguity before cosmetic detail. New parts need declared roles, mounting/support and clearance checks; a passing test suite does not establish artistic acceptance.
+
+For the user-authorized real-mesh pilot, follow `docs/mesh-pilot.md`. Delegate builder, independent spatial reviewer and anonymous visual reviewer for a batch; only the coordinator writes decisions. Use editable mesh sources/GLB and same-camera context, preserve immutable candidates, and cap corrections at the agreed budget. Self-ratings and relative visual wins cannot replace explicit benchmark/integration gates. `/mesh-pilot.html` and generated studies are development-only; experimental promotion does not deploy a city replacement.
 
 1. Read current repository state and pending runs; do not overwrite unrelated changes.
 2. Finish/verify Pages and effective contributor/release restrictions.

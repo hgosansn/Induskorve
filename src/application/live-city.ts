@@ -1,11 +1,11 @@
 import type {
-  BuildingKind,
-  BuildingModule,
-  Position,
-} from '../domain/city/model';
+  LiveCityCommand,
+  CommandResult,
+} from '../../shared/city/live-protocol';
+export type { LiveId, CommandResult } from '../../shared/city/live-protocol';
+export type CityCommand = LiveCityCommand;
 
 // SDK-independent live boundary. Generated bindings belong in infrastructure.
-export type LiveId = bigint;
 export type ConnectionStatus =
   | 'disconnected'
   | 'connecting'
@@ -19,49 +19,17 @@ export interface Viewport {
   minChunkY: number;
   maxChunkY: number;
 }
-export type CityCommand =
-  | { kind: 'join'; name: string }
-  | {
-      kind: 'place';
-      requestId: string;
-      buildingKind: BuildingKind;
-      modules?: BuildingModule[];
-      position: Position;
-    }
-  | {
-      kind: 'configure-modules';
-      requestId: string;
-      buildingId: LiveId;
-      modules: BuildingModule[];
-      expectedRevision: bigint;
-    }
-  | {
-      kind: 'dispatch-metal';
-      requestId: string;
-      buildingId: LiveId;
-      expectedRevision: bigint;
-    }
-  | {
-      kind: 'set-operating';
-      requestId: string;
-      buildingId: LiveId;
-      enabled: boolean;
-      expectedRevision: bigint;
-    }
-  | {
-      kind: 'set-billboard';
-      requestId: string;
-      buildingId: LiveId;
-      assetId: LiveId | null;
-      expectedRevision: bigint;
-    };
-export type CommandResult =
-  | { requestId: string; accepted: true; revision: bigint }
-  | { requestId: string; accepted: false; reason: string };
 export interface LiveCityGateway {
   readonly status: ConnectionStatus;
   connect(): Promise<void>;
   setViewport(viewport: Viewport): void;
-  send(command: CityCommand): Promise<CommandResult | void>;
+  /** Resolves only for a terminal server result; transport failure leaves outcome unknown. */
+  send(command: CityCommand): Promise<CommandResult>;
+  /** These must use owner-filtered reads; private tables are not directly subscribable. */
+  commandCursor(): Promise<bigint>;
+  lookupCommand(
+    requestId: string,
+    sequence: bigint,
+  ): Promise<CommandResult | 'expired' | null>;
   disconnect(): void;
 }

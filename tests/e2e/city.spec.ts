@@ -68,9 +68,11 @@ test('repairs the founding intersection and rejects construction on roads', asyn
     },
   });
   await expect(
-    page.getByText('Keep roads clear. Choose a plot beside the sidewalk.', {
-      exact: true,
-    }),
+    page
+      .getByRole('complementary', { name: 'Placement forecast' })
+      .getByText('Keep roads clear. Choose a plot beside the sidewalk.', {
+        exact: true,
+      }),
   ).toBeVisible();
   await expect(
     page.getByRole('button', { name: 'Cancel placement' }),
@@ -256,20 +258,20 @@ test('real production, full storage, dispatch and outage are visible in the insp
     () => JSON.parse(localStorage.getItem('induskorve:city:v3')!).economy,
   );
   expect(economy.stockpiles[0].metal).toBe(200);
-  const canvas = page.locator('main > canvas');
-  const box = (await canvas.boundingBox())!;
-  const zoom = Math.min(box.width / 1100, box.height / 750) * 1.1;
-  await canvas.click({
-    position: {
-      x: box.width * 0.53 + 27 * zoom,
-      y: box.height * 0.53 + 27 * zoom,
-    },
-  });
+  await page
+    .getByRole('complementary', { name: 'City guide' })
+    .getByRole('button', { name: 'Inspect structure' })
+    .click();
+  await page
+    .getByRole('button', { name: 'Inspect warehouse #1', exact: true })
+    .click();
   await expect(page.getByText('200 / 200 metal stored')).toBeVisible();
   await page.getByRole('button', { name: 'Dispatch 200 metal' }).click();
+  await page.getByRole('button', { name: 'Confirm change' }).click();
   await page.clock.fastForward(10_001);
   await expect(page.getByText('22 / 200 metal stored')).toBeVisible();
   await page.getByRole('button', { name: 'Pause machinery' }).click();
+  await page.getByRole('button', { name: 'Confirm change' }).click();
   await page.clock.fastForward(10_001);
   await expect(page.getByText('22 / 200 metal stored')).toBeVisible();
   economy = await page.evaluate(
@@ -327,6 +329,14 @@ test('asset atlas renders each family and module without editing the city', asyn
     await expect(atlas.getByText(/^Mounted on:/)).toContainText(
       family === 'Freight' ? 'Storage hall' : 'Foundation and apron',
     );
+    const dimmed = await pixels();
+    await atlas.getByRole('button', { name: 'Part only', exact: true }).click();
+    await expect.poll(pixels).not.toBe(dimmed);
+    await expect(
+      atlas.getByRole('button', { name: 'Part only', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    await atlas.getByRole('button', { name: 'Part only', exact: true }).click();
+    await expect.poll(pixels).toBe(dimmed);
     if (family === 'Power')
       await page.screenshot({ path: 'test-results/atlas-part-role.png' });
     await atlas.getByLabel('Why is this part here?').selectOption('all');
@@ -544,8 +554,18 @@ test('canvases stop repainting when reduced-motion idle or covered by a dialog',
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await expect.poll(async () => (await counts()).city).toBeGreaterThan(0);
-  // Let resize and initial DOM mutations settle before observing an idle interval.
-  await page.waitForTimeout(200);
+  // A decoded building sprite is a valid one-off invalidation, even with reduced
+  // motion. Observe idle only after initial async assets have settled.
+  await page.waitForLoadState('networkidle');
+  // Decode notifications and lazy DOM changes may arrive after network idle.
+  // Require a quiet interval first; a continuously repainting scene cannot pass.
+  await expect
+    .poll(async () => {
+      const before = await counts();
+      await page.waitForTimeout(350);
+      return (await counts()).city === before.city;
+    })
+    .toBe(true);
   const idle = await counts();
   await page.waitForTimeout(250);
   expect(await counts()).toEqual(idle);

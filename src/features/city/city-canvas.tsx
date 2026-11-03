@@ -15,11 +15,13 @@ export function CityCanvas({
   useEffect(() => {
     if (!canvas.current) return;
     const scene = createCityScene(canvas.current, store.getState(), {
+      preview: (position) => store.getState().setPreviewPosition(position),
       select: (id) => store.getState().select(id),
+      selectPedestrian: (key) => store.getState().selectPedestrian(key),
       cancel: () => store.getState().cancel(),
-      place: (p) => {
+      place: async (p) => {
         try {
-          store.getState().place(p);
+          await store.getState().place(p);
           toast.success('Built · nearby services connect automatically');
         } catch (error) {
           toast.error(
@@ -30,12 +32,23 @@ export function CityCanvas({
     });
     const unsubscribe = store.subscribe((state) => scene.update(state));
     const timer = window.setInterval(() => {
-      if (!document.hidden) store.getState().tick();
+      if (!document.hidden && store.getState().mode === 'local')
+        store.getState().tick();
     }, RULES.cycleMs);
+    const presenceTimer = window.setInterval(() => {
+      const s = store.getState();
+      if (s.mode !== 'live' || !s.citizenId || document.hidden) return;
+      const p = scene.citizenPosition();
+      if (p)
+        void s.publishPresence?.(p.x, p.y).catch(() => {
+          /* Ephemeral movement resumes after reconnect. */
+        });
+    }, 2000);
     onReady(scene);
     return () => {
       unsubscribe();
       window.clearInterval(timer);
+      window.clearInterval(presenceTimer);
       scene.dispose();
       onReady(null);
     };

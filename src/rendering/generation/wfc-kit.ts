@@ -56,11 +56,9 @@ export function compileWfcKit(
           braced: facade === 'frame',
           facade,
           roofFinish:
-            role === 'factory' && (x + rhythm) % 2 === 0
-              ? 'daylight'
-              : core || (x + y + rhythm) % 3 === 0
-                ? 'deck'
-                : 'membrane',
+            core || (role !== 'factory' && (x + y + rhythm) % 3 === 0)
+              ? 'deck'
+              : 'membrane',
         });
       }
     }

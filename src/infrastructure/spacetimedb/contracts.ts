@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { buildingKindSchema, positionSchema } from '../../domain/city/model';
 
-export const CHUNK_SIZE = 16;
-export const chunkKey = (x: number, y: number): string =>
-  `${Math.floor(x / CHUNK_SIZE)},${Math.floor(y / CHUNK_SIZE)}`;
+export { CHUNK_SIZE, chunkKey } from '../../../shared/city/keys';
+import { chunkKey } from '../../../shared/city/keys';
+export { parseLiveCommand } from '../../../shared/city/validate-command';
 export const u64Schema = z.bigint().min(0n).max(18_446_744_073_709_551_615n);
 export const buildingRowSchema = positionSchema
   .extend({
@@ -12,7 +12,11 @@ export const buildingRowSchema = positionSchema
     chunkKey: z.string(),
     kind: buildingKindSchema,
     enabled: z.boolean(),
-    creator: z.string().regex(/^[a-f0-9]{64}$/i),
+    creator: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/i)
+      .optional(),
+    definitionVersion: z.literal(1),
     revision: u64Schema,
   })
   .superRefine((row, ctx) => {
@@ -29,7 +33,8 @@ export interface LiveBuilding {
   y: number;
   type: z.infer<typeof buildingKindSchema>;
   on: boolean;
-  creatorIdentity: string;
+  creatorIdentity: string | undefined;
+  definitionVersion: number;
   revision: bigint;
 }
 // Keep u64 IDs lossless. Do not cast them to the local prototype's numeric IDs.
@@ -42,6 +47,7 @@ export function mapBuildingRow(input: unknown): LiveBuilding {
     type: row.kind,
     on: row.enabled,
     creatorIdentity: row.creator,
+    definitionVersion: row.definitionVersion,
     revision: row.revision,
   };
 }

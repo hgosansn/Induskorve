@@ -7,5 +7,7 @@ test-results/
 !.env.example
 *.local
 spacetimedb/src/module_bindings/
-src/infrastructure/spacetimedb/module-bindings/
 .local-tools/
+asset-studies/
+**/__pycache__/
+*.pyc

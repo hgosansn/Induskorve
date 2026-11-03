@@ -50,6 +50,8 @@ export function createCanvasLoop(
     childList: true,
   });
   document.addEventListener('visibilitychange', visibility);
+  const assetReady = () => invalidate();
+  window.addEventListener('induskorve:asset-ready', assetReady);
   visibility();
   return {
     invalidate,
@@ -58,6 +60,7 @@ export function createCanvasLoop(
       cancelAnimationFrame(raf);
       observer.disconnect();
       document.removeEventListener('visibilitychange', visibility);
+      window.removeEventListener('induskorve:asset-ready', assetReady);
     },
   };
 }

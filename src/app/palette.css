@@ -2,24 +2,24 @@
    semantic tokens through rendering/palette.ts; Tailwind aliases them. */
 :root {
   color-scheme: dark;
-  --background: #10171c;
-  --foreground: #e7e4dc;
-  --card: #1c282e;
-  --primary: #e7e4dc;
-  --muted: #aaa9a3;
-  --edge: #4d626a;
-  --ink: #080e13;
-  --surface: #27373e;
-  --steel: #3c535d;
-  --concrete: #9daba9;
-  --concrete-light: #c9cec2;
-  --concrete-shadow: #60787d;
-  --ground: #26383e;
-  --ground-alt: #2b3d42;
-  --road: #192a32;
-  --power: #e5ba63;
-  --materials: #79b9cb;
-  --production: #e78d59;
-  --danger: #d97766;
-  --soot: #56483f;
+  --background: #090f1c;
+  --foreground: #edf5e9;
+  --card: #152234;
+  --primary: #edf5e9;
+  --muted: #a9bdcb;
+  --edge: #6a899d;
+  --ink: #050a13;
+  --surface: #253b50;
+  --steel: #42677a;
+  --concrete: #b2c9c3;
+  --concrete-light: #e0e8ce;
+  --concrete-shadow: #779ba2;
+  --ground: #18333b;
+  --ground-alt: #284457;
+  --road: #0d1b2c;
+  --power: #ffd36b;
+  --materials: #64ddf3;
+  --production: #ff9967;
+  --danger: #ff878f;
+  --soot: #675064;
 }

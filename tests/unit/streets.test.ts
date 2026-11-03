@@ -149,6 +149,31 @@ describe('streets and pedestrians', () => {
     }
     expect(stopped).toBe(true);
   });
+  it('holds a hovered walker still without losing the route or consuming its pause', () => {
+    const world = projectWorld(createFoundingWorld());
+    const w = syncWalkers([], [], world)[0]!;
+    advanceWalkers([w], world, 0.1);
+    w.held = true;
+    const before = {
+      x: w.x,
+      y: w.y,
+      wait: w.wait,
+      target: w.target,
+      route: [...(w.route ?? [])],
+    };
+    advanceWalkers([w], world, 10);
+    expect({
+      x: w.x,
+      y: w.y,
+      wait: w.wait,
+      target: w.target,
+      route: w.route,
+    }).toEqual(before);
+    expect(w.moving).toBe(false);
+    w.held = false;
+    advanceWalkers([w], world, 0.1);
+    expect(Math.hypot(w.x - before.x, w.y - before.y)).toBeGreaterThan(0);
+  });
   it('spawns owners on their plot, preserves topology across ticks and repairs paths after placement', () => {
     const snapshot = {
       ...createFoundingWorld(),

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { composeBuilding } from '../../src/rendering/assembly/compose';
 import {
   validateAssembly,
+  volume,
+  routeSolids,
   type AssemblyInput,
 } from '../../src/rendering/assembly/model';
 import { assemblyDrawOrder } from '../../src/rendering/assembly/draw-order';
@@ -24,6 +26,45 @@ function input(type: BuildingKind): AssemblyInput {
   };
 }
 describe('building assembly contracts', () => {
+  it('joins both foundry capture branches through a supported cleanout plenum', () => {
+    const full = composeBuilding({
+      ...input('factory'),
+      modules: ['furnace', 'scrubber'],
+    });
+    expect(validateAssembly(full)).toEqual([]);
+    const owner = (portId: string) =>
+      full.ports.find((p) => p.id === portId)!.part;
+    for (const route of full.routes.filter((r) => r.service === 'exhaust'))
+      expect(route.diameter).toBe(0.28);
+    expect(owner('collector-in')).toBe('exhaust-plenum');
+    expect(owner('second-fumes-in')).toBe('exhaust-plenum');
+    expect(owner('collector-out')).toBe('exhaust-plenum');
+    expect(owner('fumes-in')).toBe('extraction');
+    const stand = full.parts.find((p) => p.kind === 'duct-support')!;
+    expect(stand.solids).toHaveLength(3);
+    const top = stand.volume.z + stand.volume.h;
+    const header = routeSolids(
+      full.routes.find((r) => r.id === 'second-extraction')!,
+    ).find((s) => s.d > 1)!;
+    expect(top).toBeCloseTo(header.z);
+    const bare = composeBuilding(input('factory'));
+    expect(bare.parts.some((p) => p.id === 'exhaust-plenum')).toBe(true);
+    expect(bare.parts.some((p) => p.id === 'exhaust-stand')).toBe(false);
+    expect(bare.routes.some((r) => r.id === 'second-extraction')).toBe(false);
+  });
+  it('checks flange clearance beyond the exhaust centre section', () => {
+    const a = composeBuilding(input('factory'));
+    const route = a.routes.find((r) => r.id === 'hall-collection')!;
+    const [x, y, z] = route.points[0]!;
+    a.clearances.push({
+      id: 'flange-probe',
+      purpose: 'Probe the flange outside the .28 duct section',
+      volume: volume(x + 0.02, y + 0.16, z, 0.02, 0.02, 0.02),
+    });
+    expect(validateAssembly(a)).toContain(
+      'hall-collection: pipe blocks flange-probe',
+    );
+  });
   it('places footings only beneath ground-contact solids, leaving crane voids and aprons open', () => {
     for (const type of families) {
       const a = composeBuilding({

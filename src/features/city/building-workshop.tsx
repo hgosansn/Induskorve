@@ -14,6 +14,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Input } from '@/components/ui/input';
 import {
   defaultDraft,
+  isCivicKind,
   moduleKinds,
   type BuildingModule,
   type BuildingDraft,
@@ -21,12 +22,22 @@ import {
   type BuildingDesign,
 } from '../../domain/city/model';
 import type { CityStore } from '../../application/city-store';
-import { MODULES, buildingStats } from '../../domain/city/catalog';
+import { BUILDINGS, MODULES, buildingStats } from '../../domain/city/catalog';
 import { Plus } from 'lucide-react';
-import { BUILDING_FORMS } from '../../rendering/assembly/building-form';
+import { architectureForms } from '../../rendering/assembly/building-form';
 
-export function BuildingWorkshop({ store }: { store: CityStore }) {
-  const [open, setOpen] = useState(false);
+export function BuildingWorkshop({
+  store,
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  store: CityStore;
+  open?: boolean;
+  onOpenChange?(open: boolean): void;
+}) {
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = controlledOpen ?? localOpen;
+  const setOpen = onOpenChange ?? setLocalOpen;
   const [draft, setDraft] = useState<BuildingDraft>(defaultDraft);
   const stats = buildingStats({
     id: -1,
@@ -36,6 +47,8 @@ export function BuildingWorkshop({ store }: { store: CityStore }) {
     on: true,
     modules: draft.modules,
   });
+  const forms = architectureForms(draft.kind),
+    civic = isCivicKind(draft.kind);
   const design = (patch: Partial<BuildingDesign>) =>
     setDraft((d) => ({ ...d, design: { ...d.design, ...patch } }));
   return (
@@ -59,17 +72,17 @@ export function BuildingWorkshop({ store }: { store: CityStore }) {
         <DialogHeader>
           <DialogTitle>Design your building</DialogTitle>
           <DialogDescription>
-            Grow a modular building, fit its machinery, then choose its place in
-            the industrial network.
+            Choose its purpose, configure its machinery, then preview nearby
+            services before placing it.
           </DialogDescription>
         </DialogHeader>
         <div className="grid min-h-0 gap-6 overflow-y-auto sm:grid-cols-2">
           <div className="self-start sm:sticky sm:top-0">
             <BuildingPreview draft={draft} />
             <p className="mt-3 text-xs text-muted-foreground">
-              One tile footprint · machinery shown in operating condition.
-              Power, storage and neighboring heat recovery determine actual
-              output.
+              {civic
+                ? 'One tile footprint · homes and shops use local power; population and trade are not simulated yet.'
+                : 'One tile footprint · machinery shown in operating condition. Power, storage and neighboring heat recovery determine actual output.'}
             </p>
           </div>
           <div className="space-y-5">
@@ -84,20 +97,37 @@ export function BuildingWorkshop({ store }: { store: CityStore }) {
                       ...d,
                       kind: v as BuildingKind,
                       modules: [],
+                      height:
+                        v === 'skyscraper' ? Math.max(72, d.height) : d.height,
+                      design: {
+                        ...d.design,
+                        shape:
+                          v === 'skyscraper'
+                            ? 'tower'
+                            : v === 'shop'
+                              ? 'block'
+                              : d.design.shape,
+                        display:
+                          v === 'skyscraper'
+                            ? 'animated'
+                            : v === 'residential' || v === 'shop'
+                              ? 'none'
+                              : d.design.display,
+                      },
                     }));
                 }}
                 aria-label="Building purpose"
+                className="flex-wrap justify-start"
               >
-                {[
-                  ['factory', 'Foundry'],
-                  ['power', 'Power'],
-                  ['warehouse', 'Storage'],
-                ].map(([value, label]) => (
-                  <ToggleGroupItem key={value} value={value!}>
-                    {label}
+                {(Object.keys(BUILDINGS) as BuildingKind[]).map((value) => (
+                  <ToggleGroupItem key={value} value={value}>
+                    {BUILDINGS[value].shortLabel}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                {BUILDINGS[draft.kind].description}
+              </p>
             </fieldset>
             <fieldset>
               <legend className="mb-2 text-sm">Architecture</legend>
@@ -111,12 +141,12 @@ export function BuildingWorkshop({ store }: { store: CityStore }) {
               >
                 {(['block', 'stepped', 'tower'] as const).map((v) => (
                   <ToggleGroupItem key={v} value={v} className="capitalize">
-                    {BUILDING_FORMS[v].label}
+                    {forms[v].label}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
               <p className="mt-2 text-xs text-muted-foreground">
-                {BUILDING_FORMS[draft.design.shape].description}
+                {forms[draft.design.shape].description}
               </p>
             </fieldset>
             <div>
@@ -133,7 +163,9 @@ export function BuildingWorkshop({ store }: { store: CityStore }) {
               />
             </div>
             <fieldset className="space-y-2">
-              <legend className="mb-2 text-sm">Functional modules</legend>
+              <legend className="mb-2 text-sm">
+                {civic ? 'Local services' : 'Functional modules'}
+              </legend>
               {(Object.keys(MODULES) as BuildingModule[])
                 .filter((m) => moduleKinds[m] === draft.kind)
                 .map((m) => (
@@ -179,7 +211,7 @@ export function BuildingWorkshop({ store }: { store: CityStore }) {
                   checked={draft.design.balcony}
                   onChange={(e) => design({ balcony: e.target.checked })}
                 />
-                Service balcony
+                {civic ? 'Balconies / entrance canopy' : 'Service balcony'}
               </Label>
             </fieldset>
             <fieldset>

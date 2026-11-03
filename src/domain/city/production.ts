@@ -1,4 +1,4 @@
-import { buildingStats } from './catalog';
+import { BUILDINGS, buildingStats } from './catalog';
 import type { WorldSnapshot } from './model';
 import { calculateNetworks } from './networks';
 
@@ -13,7 +13,9 @@ export function advanceProduction(world: WorldSnapshot): WorldSnapshot {
     world.economy?.stockpiles.map((s) => [s.buildingId, s.metal]),
   );
   const stores = new Map(
-    world.buildings.filter((b) => b.type === 'warehouse').map((b) => [b.id, b]),
+    world.buildings
+      .filter((b) => BUILDINGS[b.type].role === 'storage')
+      .map((b) => [b.id, b]),
   );
   for (const n of networks.services.values()) {
     if (!n.active || n.storageId === undefined || !n.output) continue;

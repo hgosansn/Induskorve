@@ -66,6 +66,10 @@
   .eyebrow {
     @apply font-mono text-[10px] uppercase tracking-widest text-muted-foreground;
   }
+  .city-context-panel {
+    top: var(--city-panel-top, 6rem);
+    max-height: calc(100dvh - var(--city-panel-top, 6rem) - 1rem);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -96,6 +100,14 @@ input[type='range'] {
 [data-slot='dialog-content'],
 button {
   box-shadow: none;
+}
+@media (pointer: coarse) {
+  [data-slot='button'],
+  [data-slot='toggle-group-item'],
+  [data-slot='dialog-close'] {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 input[type='checkbox'] {
   appearance: none;

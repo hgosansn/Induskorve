@@ -7,9 +7,12 @@ export default tseslint.config(
   {
     ignores: [
       'dist/**',
+      'spacetimedb/dist/**',
       'node_modules/**',
       'playwright-report/**',
       'test-results/**',
+      'src/infrastructure/spacetimedb/module-bindings/**',
+      '.local-tools/**',
     ],
   },
   js.configs.recommended,

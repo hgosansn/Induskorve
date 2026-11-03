@@ -8,6 +8,19 @@ export {
 } from '../assembly/model';
 import type { AssemblyLayer, BuildingStudy } from '../assembly/model';
 
+/** Bury the common bearing course in normal city views; retain it for inspection. */
+export function buildingGroundOffset(b: RenderBuilding, study?: BuildingStudy) {
+  if (
+    study?.exploded ||
+    study?.isolate ||
+    study?.focus === 'foundation' ||
+    study?.part === 'base'
+  )
+    return 0;
+  const hall = buildingAssembly(b).parts.find((p) => p.id === 'hall')!.volume;
+  return hall.z * KIT_Z;
+}
+
 export const roofHeight = (b: RenderBuilding) => {
   const hall = buildingAssembly(b).parts.find((p) => p.id === 'hall')!.volume;
   return (hall.z + hall.h) * KIT_Z;

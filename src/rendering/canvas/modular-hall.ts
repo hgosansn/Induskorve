@@ -85,6 +85,7 @@ export function createModularHallRenderer(
             bays: parts,
             roofOccupied: occupied,
             loading: b.type === 'warehouse',
+            foundry: b.type === 'factory',
           },
         );
         return image;

@@ -1,5 +1,9 @@
 # Building assembly contract
 
+The current three-role equipment/access/shell rework is covered in [the 19-kind completion record](current-kit-rework.md). All grid mounts now use the shared low 1.55-unit termination; native power/freight pieces and services remain statically cached. Optional per-part isolation is a review-only framing mode, and the moving freight hook stays above full two-tier stock. Existing recipe, support and service rules remain authoritative.
+
+Foundry sprite integration (2026-10-30): native-scale route exports, low ceramic electrical terminations, tall saddles and a recessed furnace now supplement the shared production renderer. Foundry grid mounts/physical wire ports are 1.55 units high. Static images share decode/cache state with procedural loading fallbacks; active furnace heat remains separate. See [measured reference review and costs](foundry-kit-integration.md). Existing module effects and saves are unchanged.
+
 A building is an industrial process arranged on a floorplan. Its silhouette is a consequence of that arrangement. Do not attach interesting shapes to a roof and invent a reason afterward.
 
 ## What was wrong
@@ -71,6 +75,16 @@ Tests compare actual width/height ratios, concentrated tower crowns, terrace ban
 The domain still owns capacities, production and saved module choices. It does not import geometry. No save migration is needed: assembly geometry is derived from existing records.
 
 ## Acceptance and limits
+
+### Foundry process correction (2026-10-30)
+
+The foundry now has one low northlight monitor on the reserved daylight mount. Generated terraces retain flat roof seams and a core access deck; they no longer scatter duplicate miniature rooflights. A weatherproof roof hatch sits directly over the pinned stair-core stack, and the electrical rack contains its switchgear on the existing supported deck.
+
+The enclosed hall capture and optional second-furnace branch feed separate inlets on a sealed, ground-mounted fume collection plenum. Its top outlet connects to the extraction package's front intake; that package discharges through the vertical flue. The furnace branch rises in the service aisle onto a ground-supported saddle. The plenum is always present; the branch and stand exist only with the second furnace. These are presentation components, not new purchasable modules or production-capacity changes.
+
+`routeSolids` in `assembly/model.ts` compiles closed duct sections, end flanges and elbow blocks for both the validator and `canvas/process-ducts.ts`. Actual fitting widths, not only thin centrelines, are checked against parts and access clearances. Equipment-owned inlet stubs close the distance between declared boundary ports and the visible skins. Duct sprites reuse the building's existing static cache; they are not rebuilt each frame. New part kinds are `plenum`, `duct-support` and `hatch`.
+
+The component vocabulary is informed by [HSE's local exhaust ventilation overview](https://www.hse.gov.uk/pubns/guidance/g406.pdf): capture, ducting, cleaning, air movement and discharge. This is an interpretation for a fictional packaged plant. Airflow, pressure losses, fan sizing, temperature and contamination safety are not simulated or certified. Some near-side equipment still occludes the plenum in the fixed city camera; inspection explains its function.
 
 Tests additionally cover 432 role/shape/height/seed combinations, actual roof contact failures and preview/ghost/save recipe equality. Existing tests cover all module subsets, all three core shapes, balcony on/off and representative heights including legacy limits (360 configurations), plus deliberately invalid collisions, support/mount failures, blocked access and broken routes. The Atlas can isolate each part and explains its role and support. Module changes must affect both the intended domain rule and its actual visible assembly.
 

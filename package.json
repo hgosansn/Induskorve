@@ -17,6 +17,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:live": "node tools/test-live.mjs",
+    "db:build": "node tools/spacetime.mjs build",
+    "db:generate": "node tools/spacetime.mjs generate",
+    "db:publish": "node tools/spacetime.mjs publish",
+    "assets:capture": "node tools/capture-asset.mjs",
+    "assets:pilot": "node tools/asset-pilot/run.mjs",
+    "assets:pilot:capture": "node tools/asset-pilot/capture.mjs",
     "check": "npm run lint && npm run typecheck && npm test && npm run format:check"
   },
   "dependencies": {
@@ -24,10 +31,13 @@
     "clsx": "^2.1.1",
     "lucide-react": "^1.63.0",
     "motion": "^14.7.1",
+    "oidc-client-ts": "^3.5.0",
     "radix-ui": "^1.8.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "react-oidc-context": "^3.3.1",
     "sonner": "^2.0.8",
+    "spacetimedb": "^2.13.0",
     "tailwind-merge": "^3.7.0",
     "zod": "^4.6.7",
     "zustand": "^5.0.16"

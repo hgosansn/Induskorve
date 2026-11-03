@@ -19,7 +19,11 @@ export function JoinCityDialog({
   store: CityStore;
   onOpenChange(open: boolean): void;
 }) {
+  const mode = store((s) => s.mode),
+    pending = store((s) => s.pending);
   const [name, setName] = useState(() => {
+    if (store.getState().mode === 'live')
+      return store.getState().suggestedName ?? '';
     try {
       return localStorage.getItem('onecity-name') ?? '';
     } catch {
@@ -37,12 +41,13 @@ export function JoinCityDialog({
       </DialogHeader>
       <form
         className="space-y-5"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
           try {
-            store.getState().join(name);
+            await store.getState().join(name);
             try {
-              localStorage.setItem('onecity-name', name.trim());
+              if (mode === 'local')
+                localStorage.setItem('onecity-name', name.trim());
             } catch {
               /* Session remains usable without storage. */
             }
@@ -76,14 +81,15 @@ export function JoinCityDialog({
           >
             Keep watching
           </Button>
-          <Button type="submit" disabled={!name.trim()}>
-            Enter the city ↗
+          <Button type="submit" disabled={!name.trim() || pending}>
+            {pending ? 'Joining…' : 'Enter the city ↗'}
           </Button>
         </DialogFooter>
       </form>
       <p className="text-xs leading-relaxed text-muted-foreground">
-        Local prototype · identity and city saved in this browser. Names are not
-        authenticated. This is not a multiplayer session.
+        {mode === 'live'
+          ? 'Your citizen belongs to your signed-in account. Contributions are saved to the shared city.'
+          : 'Local prototype · identity and city saved in this browser. Names are not authenticated. This is not a multiplayer session.'}
       </p>
     </DialogContent>
   );

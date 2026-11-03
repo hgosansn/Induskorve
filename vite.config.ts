@@ -12,11 +12,21 @@ export default defineConfig({
       apply: 'build',
       generateBundle(_options, bundle) {
         for (const output of Object.values(bundle)) {
-          if (output.fileName === 'playtest.html')
+          if (
+            ['playtest.html', 'mesh-pilot.html', 'parts-batch.html'].includes(
+              output.fileName,
+            )
+          )
             this.error('The development playtest must not be shipped.');
           if (output.type !== 'chunk') continue;
+          if (
+            Object.keys(output.modules).some((id) =>
+              /\/tests\/live\//.test(id.replaceAll('\\', '/')),
+            )
+          )
+            this.error('Live test harness imported into the product.');
           const leaked = Object.keys(output.modules).find((id) =>
-            /\/(features\/playtest\/|application\/playtest-store\.ts|domain\/city\/playtest\.ts|rendering\/canvas\/playtest-projection\.ts)/.test(
+            /\/(features\/(playtest|mesh-pilot)\/|application\/playtest-store\.ts|domain\/city\/playtest\.ts|rendering\/canvas\/playtest-projection\.ts)/.test(
               id.replaceAll('\\', '/'),
             ),
           );

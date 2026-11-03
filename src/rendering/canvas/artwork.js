@@ -3,10 +3,13 @@ import { isRoadCorridor } from '../../domain/city/plots';
 import { readPalette } from '../palette';
 import { createBuildingRenderer } from './buildings';
 import { createTerrainRenderer } from './terrain-art';
-import { createStreetLampRenderer } from './streets';
+import { createStreetLampRenderer, createStreetPropRenderer } from './streets';
+import { streetScenery } from './street-scenery';
+import { createPedestrianRenderer } from './pedestrians';
 import { iso } from './geometry';
-import { attachment } from './building-layout';
+import { attachment, buildingGroundOffset } from './building-layout';
 import { KIT_SIZE, KIT_Z } from '../assembly/model';
+import { obscuresFocus } from './focus-visibility';
 // Canvas orchestration and procedural adverts. Building assemblies and terrain are typed renderers.
 // Its typed boundary is artwork.d.ts; camera/input/lifecycle live in scene.ts.
 export function createArtwork(ctx) {
@@ -20,6 +23,7 @@ export function createArtwork(ctx) {
     grid,
     hover,
     selected,
+    hoveredBuilding,
     clock,
     buildings,
     terrain,
@@ -30,22 +34,28 @@ export function createArtwork(ctx) {
     layer,
     draft,
     preview,
-    study;
+    study,
+    partOverrides;
   const key = (x, y) => `${x},${y}`;
   const P = readPalette();
   const drawBuilding = createBuildingRenderer(ctx, P);
   const drawTerrain = createTerrainRenderer(ctx, P);
   const drawStreetLamp = createStreetLampRenderer(ctx, P);
+  const drawStreetProp = createStreetPropRenderer(ctx, P);
+  const drawPedestrian = createPedestrianRenderer(ctx, P);
   const COLORS = {
     power: P.power,
     materials: P.materials,
     heat: P.production,
     factory: P.production,
     warehouse: P.materials,
+    residential: P.concrete,
+    skyscraper: P.materials,
+    shop: P.production,
   };
   function port(b, kind) {
     const p = attachment(b, kind);
-    return iso(p.x, p.y, p.z);
+    return iso(p.x, p.y, p.z - buildingGroundOffset(b, study));
   }
   function connectionPoint(a, b, q, bend) {
     return [
@@ -117,31 +127,16 @@ export function createArtwork(ctx) {
     return v - Math.floor(v);
   }
   function pedestrian(w, t) {
-    let p = iso(w.x, w.y);
-    let mine = citizen && w.person?.id === citizen.id;
-    ctx.fillStyle = P['ink'] + '77';
-    ctx.beginPath();
-    ctx.ellipse(p[0], p[1], 2.8, 1.1, 0, 0, 7);
-    ctx.fill();
-    let stride = w.moving ? Math.sin(t * 8 + w.phase) * 1.1 : 0.45;
-    line([p[0] - 0.6, p[1] - 2], [p[0] - stride, p[1]], P['surface'], 1);
-    line([p[0] + 0.6, p[1] - 2], [p[0] + stride, p[1]], P['surface'], 1);
-    line(
-      [p[0], p[1] - 2],
-      [p[0], p[1] - 5],
-      mine ? P['foreground'] : w.color,
-      2,
-    );
-    ctx.fillStyle = P['muted'];
-    ctx.fillRect(p[0] - 0.8, p[1] - 7, 1.6, 1.7);
-    if (mine) {
-      ctx.strokeStyle = P['foreground'] + '88';
+    drawPedestrian(w, t);
+    if (citizen && w.person?.id === citizen.id) {
+      const p = iso(w.x, w.y);
+      ctx.strokeStyle = P.foreground + '88';
+      ctx.lineWidth = 0.5;
       ctx.beginPath();
       ctx.ellipse(p[0], p[1], 4, 2, 0, 0, 7);
       ctx.stroke();
     }
   }
-
   function poly(points, fill, stroke) {
     ctx.beginPath();
     points.forEach((p, i) => (i ? ctx.lineTo(...p) : ctx.moveTo(...p)));
@@ -293,6 +288,9 @@ export function createArtwork(ctx) {
       0,
       0,
     );
+    // The display casing stays opaque when power is lost; only its light dims.
+    ctx.fillStyle = P.ink;
+    ctx.fillRect(0, 0, 96, 160);
     ctx.globalAlpha *= on ? 0.85 : 0.15;
     ctx.drawImage(entry.canvas, 0, 0);
     ctx.strokeStyle = on ? P['concrete'] + '77' : P['steel'];
@@ -313,11 +311,15 @@ export function createArtwork(ctx) {
     )
       return;
     const on = net.get(b)?.active ?? (ghost || b.on);
+    ctx.save();
+    ctx.translate(0, buildingGroundOffset(b, study));
+    if (!ghost && obscuresFocus(b, selected)) ctx.globalAlpha *= 0.42;
     drawBuilding(b, on, t, {
       zoom,
       ghost,
-      selected: selected === b,
+      selected: selected === b || hoveredBuilding === b,
       study,
+      partOverrides,
       facade:
         b.design?.display === 'animated' || b.adImage
           ? (v) => {
@@ -334,6 +336,7 @@ export function createArtwork(ctx) {
             }
           : undefined,
     });
+    ctx.restore();
   }
   function draw(frame) {
     ({
@@ -347,6 +350,7 @@ export function createArtwork(ctx) {
       grid,
       hover,
       selected,
+      hoveredBuilding,
       clock,
       buildings,
       terrain,
@@ -358,6 +362,7 @@ export function createArtwork(ctx) {
       draft,
       preview,
       study,
+      partOverrides,
     } = frame);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = P['background'];
@@ -378,6 +383,20 @@ export function createArtwork(ctx) {
     ctx.translate(W * 0.53 + panX, H * 0.53 + panY);
     ctx.scale(zoom, zoom);
     drawTerrain(frame);
+    const scenery = study
+      ? { lamps: [], props: [] }
+      : streetScenery(frame.streets);
+    const visibleFixture = (p) => {
+      const at = iso(p.x, p.y),
+        x = W * 0.53 + panX + at[0] * zoom,
+        y = H * 0.53 + panY + at[1] * zoom;
+      return (
+        x > -24 * zoom &&
+        x < W + 24 * zoom &&
+        y > -12 * zoom &&
+        y < H + 32 * zoom
+      );
+    };
     // foundations, service pipes and buildings in depth order
     [
       ...[...buildings.values()].map((b) => ({
@@ -386,7 +405,12 @@ export function createArtwork(ctx) {
         b,
       })),
       ...walkers.map((w) => ({ x: w.x, y: w.y, w })),
-      ...(study ? [] : frame.streets.lamps.map((lamp) => ({ ...lamp, lamp }))),
+      ...scenery.lamps
+        .filter(visibleFixture)
+        .map((lamp) => ({ ...lamp, lamp })),
+      ...scenery.props
+        .filter(visibleFixture)
+        .map((prop) => ({ ...prop, prop })),
     ]
       .sort((a, b) => a.x + a.y - b.x - b.y)
       .forEach((e) =>
@@ -394,7 +418,9 @@ export function createArtwork(ctx) {
           ? building(e.b, clock)
           : e.lamp
             ? drawStreetLamp(e.lamp)
-            : pedestrian(e.w, clock),
+            : e.prop
+              ? drawStreetProp(e.prop)
+              : pedestrian(e.w, clock),
       );
     drawConnections(clock);
     if (hover && citizen && mode !== 'inspect') {

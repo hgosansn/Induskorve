@@ -1,5 +1,9 @@
 # Streets and pedestrian access
 
+City ground is continuous and flat: no alternating plot squares, raised terrain edge walls or repeated foundation pedestals. Normal building artwork buries the common bearing course, with network endpoints lowered by the same amount. Contact solids remain in the assembly validator and are visible in foundation/isolated/exploded studies. Roads, curbs, access paths, optional grid lines and local terrain reveal keep their existing rules.
+
+Street art now uses topology-aware cantilever/twin/capped lamps with matching head-derived light pools, sparse checked curb-pocket props and six identity-stable pedestrian silhouettes. Routing is unchanged. See [visual review, clearance rules and measured costs](street-variation.md). Lamp feet use mirrored `.195/.805` corner pockets, and new raised scenery reserves `.04` tile from walking edges. Benches need a widened bay and are not part of this pass.
+
 `src/domain/city/streets.ts` derives a local street and walking graph from revealed terrain and occupied plots. Canvas uses the same graph to paint asphalt, sidewalks, crossings, access paths and public lamps. There is no separate random tile-walking rule.
 
 - The existing every-fourth-row/column roads remain. A road arm exists only when its revealed, unoccupied neighbor is also a road. Junctions, corners and ends therefore have matching curbs; saved buildings on road coordinates are preserved and cap neighboring roads, except the exact founding-station correction described below. New buildings cannot occupy road corridors; the ghost and domain command enforce the same rule.
@@ -9,6 +13,14 @@
 - Lamp posts stand on the sidewalk and cast visible warm ground pools. Fixtures and light pools are cached. They are ambient public lighting, not simulated power consumers, and do not perform dynamic shadow occlusion.
 
 Topology is reused across production and appearance changes. Route searches happen when choosing destinations, not on every animation frame. Motion uses the existing bounded Canvas loop and pauses when the canvas is hidden or covered. Reduced motion leaves pedestrians stationary.
+
+Pedestrians stroll at identity-stable speeds of 0.16–0.208 tiles per second, with a slower, shorter gait. After 12–22 seconds of walking they pause for 2–6 seconds at the next curb/access node, retaining their route; they never pause in the middle of a crossing. Front-apron visits last 5–11 seconds. These are local ambient behaviors, not population simulation.
+
+In inspect mode, buildings highlight on hover with a pointer cursor and identity tooltip. Hovering a pedestrian highlights and temporarily holds them, showing their name or ambient status. The joined citizen has a blue ground ring and a grab cursor. Dragging that person moves only the local pedestrian, never the map or saved buildings; drops snap to a path node within 0.8 tile, pause briefly and resume walking. Invalid drops, Escape and interrupted pointer capture restore the pickup position. Other pedestrians cannot be dragged. Positions are session-local and are not saved or synchronized.
+
+Building hover and clicks use the isometric ground tile, including tiles concealed by a taller foreground facade. Selecting a building keeps it opaque and fades foreground buildings whose projected envelopes overlap it to 42% opacity. Clearing selection restores them. This is an envelope-based visibility aid, not per-pixel occlusion; terrain, people and save data are unchanged. Pedestrian hit testing still respects the visible building depth order.
+
+Clicking a pedestrian opens the character inspector; an own-character pickup becomes a drag only beyond four pixels. Building and pedestrian selection are mutually exclusive, and Escape closes selection. Character stats count existing buildings attributed by creator ID, their type diversity and switched-on state. New local citizens save an optional `joinedAt` timestamp in version-3 saves; older citizens keep an unknown join date rather than receiving a fabricated age. Ambient walkers have no player history or contributions. Profile selection is transient; positions and stats are browser-local, not shared identity or authoritative activity history.
 
 The geometry contract reserves the outside margin of each 12-unit plot plus the front approach. Tests check paths against all building families with fitted ground equipment, routes across crossings, plot access, waiting, placement invalidation and cache reuse. Any new machinery floorplan must retain these access clearances or update the shared routing contract.
 

@@ -1,6 +1,8 @@
 import { cityMassing, massingSolids } from '../generation/city-massing';
 import { assemblyDimensions, buildingMounts } from './mounts';
 import { hasModule } from '../../domain/city/catalog';
+import { isCivicKind } from '../../domain/city/model';
+import { composeCivicBuilding } from './civic';
 import {
   volume,
   type AssemblyInput,
@@ -12,6 +14,7 @@ import {
 } from './model';
 
 export function composeBuilding(b: AssemblyInput): BuildingAssembly {
+  if (isCivicKind(b.type)) return composeCivicBuilding(b);
   const a: BuildingAssembly = {
     family: b.type,
     parts: [],
@@ -128,6 +131,7 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
       from,
       to,
       service: source.service,
+      ...(source.service === 'exhaust' ? { diameter: 0.28 } : {}),
       points: [source.point, ...via, sink.point],
     });
   };
@@ -196,6 +200,13 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
     }
   } else if (b.type === 'factory') {
     add(
+      'roof-hatch',
+      'hatch',
+      'Stair-core roof hatch',
+      'A weatherproof hatch over the internal stair core provides roof access. It sits on the core roof rather than an arbitrary terrace.',
+      'services',
+    );
+    add(
       'daylight',
       'skylights',
       'Sawtooth rooflights',
@@ -213,9 +224,33 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
       scrubbed ? 'modules' : 'machinery',
       scrubbed ? 'scrubber' : undefined,
     );
-    port('fumes-out', hall, 'exhaust', 'out', [hallRight, 2.6, floor + 2]);
-    port('fumes-in', exhaust, 'exhaust', 'in', [equipmentX, 2.6, floor + 2]);
-    route('extraction-duct', 'fumes-out', 'fumes-in');
+    const plenum = add(
+      'exhaust-plenum',
+      'plenum',
+      'Fume collection plenum',
+      'A sealed ground-mounted collection box joins the enclosed hall capture and optional furnace branch before extraction. Removable panels provide cleanout access.',
+      'machinery',
+    );
+    port('fumes-out', hall, 'exhaust', 'out', [hallRight, 4.55, floor + 1.1]);
+    port('collector-in', plenum, 'exhaust', 'in', [
+      equipmentX + 0.6,
+      4.55,
+      floor + 1.1,
+    ]);
+    port('collector-out', plenum, 'exhaust', 'out', [
+      equipmentX + 1.05,
+      4.75,
+      floor + 1.75,
+    ]);
+    port('fumes-in', exhaust, 'exhaust', 'in', [
+      equipmentX + 1.05,
+      4.1,
+      floor + 2.2,
+    ]);
+    route('hall-collection', 'fumes-out', 'collector-in');
+    route('extraction-duct', 'collector-out', 'fumes-in', [
+      [equipmentX + 1.05, 4.75, floor + 2.2],
+    ]);
     if (hasModule(b, 'furnace')) {
       const furnace = add(
         'second-furnace',
@@ -230,14 +265,37 @@ export function composeBuilding(b: AssemblyInput): BuildingAssembly {
         6.4,
         floor + 2,
       ]);
-      port('second-fumes-in', exhaust, 'exhaust', 'in', [
-        equipmentX,
-        3.3,
-        floor + 2,
+      const stand = add(
+        'exhaust-stand',
+        'duct-support',
+        'Furnace duct stand',
+        'Ground-supported saddle carries the furnace exhaust branch in the reserved service aisle. It ends at the underside of the duct.',
+        'services',
+        'furnace',
+      );
+      const s = stand.volume;
+      stand.solids = [
+        volume(s.x, s.y, s.z, s.w, s.d, 0.12),
+        volume(
+          s.x + s.w * 0.38,
+          s.y + s.d * 0.28,
+          s.z + 0.12,
+          s.w * 0.24,
+          s.d * 0.44,
+          s.h - 0.24,
+        ),
+        volume(s.x, s.y, s.z + s.h - 0.12, s.w, s.d, 0.12),
+      ];
+      port('second-fumes-in', plenum, 'exhaust', 'in', [
+        equipmentX + 0.6,
+        4.95,
+        floor + 1.1,
       ]);
       route('second-extraction', 'second-fumes-out', 'second-fumes-in', [
         [pipeX, 6.4, floor + 2],
-        [pipeX, 3.3, floor + 2],
+        [pipeX, 6.4, floor + 4],
+        [pipeX, 4.95, floor + 4],
+        [pipeX, 4.95, floor + 1.1],
       ]);
     }
   } else {

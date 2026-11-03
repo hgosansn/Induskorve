@@ -4,7 +4,7 @@ import { createStreetPainter } from './streets';
 import { createGeometry, iso } from './geometry';
 
 function createTerrainPainter(ctx: CanvasRenderingContext2D, p: Palette) {
-  const { polygon, line, glow } = createGeometry(ctx, p);
+  const { polygon, glow } = createGeometry(ctx, p);
   const streetsPainter = createStreetPainter(ctx, p);
   return ({ terrain, buildings, net, grid, study, streets }: RenderFrame) => {
     for (const { x, y, exposure } of [...terrain.values()].sort(
@@ -15,63 +15,20 @@ function createTerrainPainter(ctx: CanvasRenderingContext2D, p: Palette) {
         c = iso(x + 1, y + 1),
         d = iso(x, y + 1);
       const street = !study ? streets.roads.get(`${x},${y}`) : undefined;
-      const noise = Math.abs(Math.sin(x * 127.1 + y * 311.7));
-      // Cut edges reveal an engineered ground slab; interior cells merge visually.
-      if (!terrain.has(`${x + 1},${y}`))
-        polygon(
-          [b, c, iso(x + 1, y + 1, -7), iso(x + 1, y, -7)],
-          p.ink,
-          p.surface,
-        );
-      if (!terrain.has(`${x},${y + 1}`))
-        polygon(
-          [d, c, iso(x + 1, y + 1, -7), iso(x, y + 1, -7)],
-          p.surface,
-          p.edge,
-        );
+      // One continuous ground material; tile boundaries are an optional tool,
+      // not a repeated pedestal beneath every structure and street fixture.
       polygon(
         [a, b, c, d],
-        street ? p.road : noise > 0.5 ? p.ground : p['ground-alt'],
+        street ? p.road : p.ground,
         grid ? p.edge : undefined,
       );
       if (exposure) {
-        ctx.save();
-        ctx.globalAlpha = Math.min(0.45, exposure * 0.045);
-        polygon([a, b, c, d], p.soot);
-        ctx.restore();
+        glow(iso(x + 0.5, y + 0.5), p.soot, 32, Math.min(0.3, exposure * 0.03));
       }
       if (street) streetsPainter.road(street);
-      // A seam and two fixing points add scale without outlining every grid cell.
-      if (noise > 0.75 && !street)
-        line(iso(x + 0.08, y + 0.1), iso(x + 0.8, y + 0.1), p.surface, 0.5);
-      if (!terrain.has(`${x},${y + 1}`)) {
-        line(
-          iso(x + 0.12, y + 1, -2),
-          iso(x + 0.32, y + 1, -2),
-          p['concrete-shadow'],
-          1,
-        );
-      }
     }
-    if (!study) streetsPainter.paths(streets);
-    // Grounded cast shadows precede structures. They never alter revealed tiles.
+    // Soft operating light only; no repeated polygon shadow pads beneath assets.
     for (const b of buildings.values()) {
-      if (!study?.exploded) {
-        const base = iso(b.x + 0.5, b.y + 0.7),
-          length = b.h * 0.28;
-        ctx.save();
-        ctx.globalAlpha = 0.25;
-        polygon(
-          [
-            [base[0] - 19, base[1]],
-            [base[0] + 19, base[1]],
-            [base[0] + length + 16, base[1] + length * 0.4],
-            [base[0] + length - 16, base[1] + length * 0.4],
-          ],
-          p.ink,
-        );
-        ctx.restore();
-      }
       if (net.get(b)?.active)
         glow(
           iso(b.x + 0.5, b.y + 0.75),
@@ -79,9 +36,13 @@ function createTerrainPainter(ctx: CanvasRenderingContext2D, p: Palette) {
             ? p.production
             : b.type === 'power'
               ? p.power
-              : p.materials,
-          24,
-          0.1,
+              : b.type === 'warehouse' || b.type === 'skyscraper'
+                ? p.materials
+                : b.type === 'shop'
+                  ? p.production
+                  : p.power,
+          28,
+          0.16,
         );
     }
     if (!study) streetsPainter.lighting(streets);
@@ -98,6 +59,7 @@ export function createTerrainRenderer(
   const paint = createTerrainPainter(target, p);
   let previous: unknown[] = [];
   return (frame: RenderFrame) => {
+    if (frame.W <= 0 || frame.H <= 0) return;
     const keys = [
       frame.W,
       frame.H,
